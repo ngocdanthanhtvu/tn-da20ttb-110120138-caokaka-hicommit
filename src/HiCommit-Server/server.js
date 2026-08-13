@@ -35,11 +35,14 @@ app.use(cookieParser());
 const allowedDomains = [
     'http://192.168.0.103:5173',
     'http://localhost:5173',
+    'https://localhost:5173',
     'https://bug-free-space-dollop-4p5v795xv6j2jj9g-5173.app.github.dev',
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
+    console.log("CORS Origin:", origin);
+
     if (allowedDomains.indexOf(origin) !== -1 || !origin) {
       callback(null, true);
     } else {

@@ -9,4 +9,18 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:5174",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+      "/socket.io": {
+        target: "http://localhost:5174",
+        ws: true,
+        changeOrigin: true,
+      },
+    },
+  },
 })

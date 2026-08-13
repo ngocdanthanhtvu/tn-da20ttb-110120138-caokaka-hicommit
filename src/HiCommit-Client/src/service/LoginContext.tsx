@@ -31,11 +31,7 @@ export const LoginProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 try {
                     const encryptedToken = localStorage.getItem('encryptedGithubAccessToken');
 
-                    console.log(encryptedToken);
-
                     const token = decryptToken(encryptedToken ?? "", user.uid);
-
-                    console.log(token);
 
                     const octokit = new Octokit({ auth: token });
 

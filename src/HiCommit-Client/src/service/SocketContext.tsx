@@ -15,7 +15,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [socket, setSocket] = useState<Socket | null>(null);
 
     useEffect(() => {
-        const socketInstance = io((import.meta as any).env.VITE_HICOMMIT_API_HOST);
+        const socketInstance = io({
+            path: "/socket.io",
+        });
         setSocket(socketInstance);
 
         return () => {

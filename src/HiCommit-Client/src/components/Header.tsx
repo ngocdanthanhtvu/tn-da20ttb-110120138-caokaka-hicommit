@@ -64,6 +64,8 @@ function Header() {
             <div className="relative ml-auto flex-1">
                 <Search className="absolute left-3 top-[11px] h-4 w-4 text-muted-foreground" />
                 <Input
+                    id="header-search"
+                    name="header-search"
                     type="search"
                     placeholder="Tìm kiếm khoá học, bài tập..."
                     className="w-full rounded-md pl-9 flex-1  bg-transparent"
