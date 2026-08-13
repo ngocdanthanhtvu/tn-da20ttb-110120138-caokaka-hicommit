@@ -80,7 +80,6 @@ function Course() {
     const handleGetCourseData = async () => {
         const response = await getCourseById(course_id as string);
         setCourseData(response);
-        console.log(response);
     };
 
     const handleGetMySubmited = async () => {
@@ -122,8 +121,7 @@ function Course() {
                         fontFamily: 'Plus Jakarta Sans',
                     }
                 });
-            console.log(response);
-            handleGetCourseData();
+                handleGetCourseData();
             setInputKey("");
             setTimeout(() => {
                 setLoading(false);

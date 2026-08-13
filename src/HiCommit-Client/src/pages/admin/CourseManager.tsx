@@ -69,7 +69,7 @@ import { useLogin } from "@/service/LoginContext";
 import { AlertDialogFooter } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { getCoursesForAdmin, togglePublishCourse } from "@/service/API/Course";
-import ReactHtmlParser from "react-html-parser";
+import parse from "html-react-parser";
 import { Switch } from "@/components/ui/switch";
 import { formatTimeAgo } from "@/service/DateTimeService";
 
@@ -187,7 +187,7 @@ function CourseManager() {
                             <Badge variant="default" className="rounded text-[9px] px-[5px] py-[1px] mr-2 font-bold leading-4">{row.getValue("class_name")}</Badge>
                             {row.getValue("name")}
                         </Link>
-                        <p className="text-xs opacity-50 line-clamp-2 dark:font-light">{ReactHtmlParser(row.getValue("description"), { transform })}</p>
+                        <p className="text-xs opacity-50 line-clamp-2 dark:font-light">{parse(row.getValue("description"), { transform })}</p>
                     </div>
                 </div>
             ),

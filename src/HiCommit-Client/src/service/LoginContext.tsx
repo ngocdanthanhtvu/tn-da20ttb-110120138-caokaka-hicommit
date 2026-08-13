@@ -2,7 +2,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, handleLogout } from './firebase';
 import { login } from './API/Auth';
-import { Octokit } from 'octokit';
+import { Octokit } from '@octokit/rest';
 import CryptoJS from 'crypto-js';
 import { getJoinedContest } from './API/Contest';
 

@@ -17,6 +17,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     useEffect(() => {
         const socketInstance = io({
             path: "/socket.io",
+            transports: ["websocket"],
         });
         setSocket(socketInstance);
 

@@ -74,19 +74,15 @@ function Header() {
             <div className="flex gap-3">
                 <ModeToggle />
                 <DropdownMenu>
-                    <DropdownMenuTrigger>
-                        <TooltipProvider delayDuration={200}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon" className="bg-transparent">
-                                        <Bell className="h-[1.2rem] w-[1.2rem]" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    Thông báo
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="bg-transparent"
+                            aria-label="Thông báo"
+                        >
+                            <Bell className="h-[1.2rem] w-[1.2rem]" />
+                        </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="min-w-[180px]">
                         <DropdownMenuLabel>

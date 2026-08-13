@@ -17,12 +17,12 @@ function Footer() {
                 <span className="font-medium">2024</span>
             </div>
             <span className="text-sm">A project of the <Link to="https://ithub.vn" target="_blank"><strong className="font-semibold text-green-600 dark:text-green-500">ITHub Club</strong></Link>, Tra Vinh University<img src="https://flagcdn.com/vn.svg" className="inline w-5 -translate-y-[1px] ml-1" /></span>
-            <p className="text-sm mt-1">
+            <div className="text-sm mt-1">
                 Powered by <Badge variant="secondary" className="rounded px-1.5 -translate-y-[2px]">
                     <i className="fa-regular fa-circle-play mr-1"></i>GitHub Actions
                 </Badge>
                 <span className="mx-2">|</span>
-                Developed by <Link to="https://github.com/kakanvk" target="_blank"><strong className="font-semibold text-green-600 dark:text-green-500">kakanvk</strong></Link></p>
+                Developed by <Link to="https://github.com/kakanvk" target="_blank"><strong className="font-semibold text-green-600 dark:text-green-500">kakanvk</strong></Link></div>
         </div>
     );
 };
@@ -44,12 +44,12 @@ function AdminFooter() {
                     <span className="font-medium">2024</span>
                 </div>
                 <span className="text-sm">A project of the <Link to="https://ithub.vn" target="_blank"><strong className="font-semibold text-green-600 dark:text-green-500">ITHub Club</strong></Link>, Tra Vinh University<img src="https://flagcdn.com/vn.svg" className="inline w-5 -translate-y-[1px] ml-1" /></span>
-                <p className="text-sm mt-1">
+                <div className="text-sm mt-1">
                     Powered by <Badge variant="secondary" className="rounded px-1.5 -translate-y-[2px]">
                         <i className="fa-regular fa-circle-play mr-1"></i>GitHub Actions
                     </Badge>
                     <span className="mx-2">|</span>
-                    Developed by <Link to="https://github.com/kakanvk" target="_blank"><strong className="font-semibold text-green-600 dark:text-green-500">kakanvk</strong></Link></p>
+                    Developed by <Link to="https://github.com/kakanvk" target="_blank"><strong className="font-semibold text-green-600 dark:text-green-500">kakanvk</strong></Link></div>
             </div>
         </div>
     );

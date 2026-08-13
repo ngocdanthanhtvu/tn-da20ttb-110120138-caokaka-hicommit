@@ -81,7 +81,7 @@ import Loader2 from '@/components/ui/loader2';
 import { deleteContestByID, getContestsForAdmin, togglePinnedContestByID, togglePublishContestByID, updatePublicContestByID } from '@/service/API/Contest';
 import { Switch } from '@/components/ui/switch';
 import { handleCopyText } from '@/service/UIService';
-import ReactHtmlParser from "react-html-parser";
+import parse from "html-react-parser";
 import moment from 'moment';
 
 function transform(node: any) {

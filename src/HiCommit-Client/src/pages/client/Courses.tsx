@@ -34,7 +34,7 @@ import { Link } from "react-router-dom";
 import { toggleFavouriteCourse } from "@/service/API/User";
 import toast from "react-hot-toast";
 import { useLogin } from "@/service/LoginContext";
-import ReactHtmlParser from "react-html-parser";
+import parse from "html-react-parser";
 import BlurFade from "@/components/magicui/blur-fade";
 import { debounce } from 'lodash';
 
@@ -346,7 +346,7 @@ function Courses() {
                                                                         {course?.name}
                                                                     </Link>
                                                                     <p className="text-sm opacity-50 dark:font-light line-clamp-2">
-                                                                        {ReactHtmlParser(course?.description, { transform })}
+                                                                        {parse(course?.description, { transform })}
                                                                     </p>
                                                                     <div className="flex flex-wrap gap-2 mt-3">
                                                                         <Badge variant="secondary" className="text-[12px] p-1 px-3">
@@ -490,7 +490,7 @@ function Courses() {
                                                                     }
                                                                     {course?.name}
                                                                 </Link>
-                                                                <p className="text-sm opacity-50 dark:font-light line-clamp-2">{ReactHtmlParser(course?.description, { transform })}</p>
+                                                                <p className="text-sm opacity-50 dark:font-light line-clamp-2">{parse(course?.description, { transform })}</p>
                                                                 <div className="flex flex-wrap gap-2 mt-3">
                                                                     <Badge variant="secondary" className="text-[12px] p-1 px-3">
                                                                         <GitMerge className="w-3 h-3 mr-1.5" />

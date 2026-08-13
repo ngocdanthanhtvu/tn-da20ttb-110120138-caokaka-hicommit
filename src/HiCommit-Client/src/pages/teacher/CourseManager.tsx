@@ -1,4 +1,4 @@
-import ReactHtmlParser from "react-html-parser";
+import parse from "html-react-parser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronRight, Eye, Filter, MoveRight, Plus, RotateCcw, Search, UsersRound, X } from "lucide-react";
@@ -209,7 +209,7 @@ function CourseManager() {
                                                         <p
                                                             className="opacity-70 dark:opacity-50 text-sm dark:font-light text-xs line-clamp-2"
                                                         >
-                                                            {ReactHtmlParser(course?.description, { transform })}
+                                                            {parse(course?.description, { transform })}
                                                         </p>
                                                     </div>
                                                     <div className="w-full flex items-end justify-between">
