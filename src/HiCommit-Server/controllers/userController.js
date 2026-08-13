@@ -65,18 +65,18 @@ const getUserProfileByUsername = async (req, res) => {
                 [
                     sequelize.literal(`(
                         SELECT COALESCE(SUM(
-                            CASE 
+                            CASE
                                 WHEN EXISTS (
-                                    SELECT 1 
-                                    FROM Submissions s2 
-                                    WHERE s2.problem_slug = p.slug 
-                                    AND s2.username = User.username 
+                                    SELECT 1
+                                    FROM submissions s2
+                                    WHERE s2.problem_slug = p.slug
+                                    AND s2.username = User.username
                                     AND s2.status = 'PASSED'
-                                ) THEN p.score 
-                                ELSE 0 
+                                ) THEN p.score
+                                ELSE 0
                             END
                         ), 0)
-                        FROM Problems p
+                        FROM problems p
                         WHERE p.type = 'FREE'
                     )`),
                     'score'
@@ -84,9 +84,9 @@ const getUserProfileByUsername = async (req, res) => {
                 [
                     sequelize.literal(`(
                         SELECT GROUP_CONCAT(DISTINCT p.slug)
-                        FROM Submissions s
-                        JOIN Problems p ON s.problem_slug = p.slug
-                        WHERE s.username = User.username 
+                        FROM submissions s
+                        JOIN problems p ON s.problem_slug = p.slug
+                        WHERE s.username = User.username
                         AND s.status = 'PASSED'
                         AND p.type = 'FREE'
                     )`),
@@ -95,13 +95,13 @@ const getUserProfileByUsername = async (req, res) => {
                 [
                     sequelize.literal(`CAST((
                         SELECT COALESCE(
-                            (SUM(CASE WHEN s.status = 'PASSED' THEN 1 ELSE 0 END) * 100.0) / 
+                            (SUM(CASE WHEN s.status = 'PASSED' THEN 1 ELSE 0 END) * 100.0) /
                             NULLIF(COUNT(*), 0),
                             0
                         )
-                        FROM Submissions s
-                        JOIN Problems p ON s.problem_slug = p.slug
-                        WHERE s.username = User.username 
+                        FROM submissions s
+                        JOIN problems p ON s.problem_slug = p.slug
+                        WHERE s.username = User.username
                         AND p.type = 'FREE'
                     ) AS DECIMAL(10, 2))`),
                     'ac_rate'

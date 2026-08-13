@@ -41,6 +41,8 @@ const Unit = sequelize.define('Unit', {
             }
         }
     }
+}, {
+    tableName: 'units'
 });
 
 Unit.belongsTo(Course, { foreignKey: 'course_id', as: 'course' });

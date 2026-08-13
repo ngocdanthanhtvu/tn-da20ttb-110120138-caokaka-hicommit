@@ -35,6 +35,7 @@ const UserCourse = sequelize.define('UserCourse', {
         defaultValue: 'INACTIVE'
     },
 }, {
+    tableName: 'usercourses',
     paranoid: true,
     timestamps: true,
     deletedAt: 'deletedAt',

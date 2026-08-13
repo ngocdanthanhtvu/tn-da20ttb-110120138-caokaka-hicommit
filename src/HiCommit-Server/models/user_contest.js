@@ -39,6 +39,7 @@ const UserContest = sequelize.define('UserContest', {
         defaultValue: 'ACTIVE'
     },
 }, {
+    tableName: 'usercontests',
     paranoid: true,
     timestamps: true,
     deletedAt: 'deletedAt',

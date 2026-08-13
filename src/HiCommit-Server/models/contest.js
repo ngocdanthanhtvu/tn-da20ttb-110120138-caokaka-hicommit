@@ -73,6 +73,7 @@ const Contest = sequelize.define('Contest', {
         defaultValue: false
     },
 }, {
+    tableName: 'contests',
     paranoid: true,
     timestamps: true,
     deletedAt: 'deletedAt',

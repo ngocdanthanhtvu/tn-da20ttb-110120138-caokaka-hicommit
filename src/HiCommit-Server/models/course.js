@@ -82,6 +82,7 @@ const Course = sequelize.define('Course', {
         }
     }
 }, {
+    tableName: 'courses',
     defaultScope: {
         include: [
             {

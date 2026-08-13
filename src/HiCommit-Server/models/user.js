@@ -68,6 +68,7 @@ const User = sequelize.define('User', {
         defaultValue: () => Math.floor(Date.now() / 1000)
     },
 }, {
+    tableName: 'users',
     indexes: [{ unique: true, fields: ['email'] }],
 });
 

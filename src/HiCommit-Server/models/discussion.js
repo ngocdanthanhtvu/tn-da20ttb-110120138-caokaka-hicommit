@@ -39,6 +39,7 @@ const Discussion = sequelize.define('Discussion', {
         defaultValue: 'OPEN'
     }
 }, {
+    tableName: 'discussions',
     paranoid: true,
     timestamps: true,
     deletedAt: 'deletedAt',

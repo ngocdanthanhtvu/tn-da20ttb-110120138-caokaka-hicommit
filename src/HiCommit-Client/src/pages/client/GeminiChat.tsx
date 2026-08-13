@@ -27,7 +27,7 @@ function GeminiChat() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     className="h-full rounded-xl p-3 px-4 bg-secondary/40 text-base"
-                    style={{ fieldSizing: "content" }}
+                    style={{ fieldSizing: "content" } as React.CSSProperties}
                     spellCheck={false}
                 />
                 <Button className="rounded-lg mt-0.5 ml-auto absolute bottom-3 right-3" onClick={handleSendMessage} disabled={!message}>Gửi câu hỏi</Button>

@@ -89,6 +89,8 @@ const Submission = sequelize.define('Submission', {
         type: DataTypes.INTEGER,
         allowNull: true
     }
+}, {
+    tableName: 'submissions'
 });
 
 Submission.belongsTo(User, { foreignKey: 'username', targetKey: 'username' });

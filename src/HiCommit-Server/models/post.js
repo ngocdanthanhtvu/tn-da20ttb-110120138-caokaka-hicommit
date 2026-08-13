@@ -67,6 +67,7 @@ const Post = sequelize.define('Post', {
     },
     // Post(id, title, created_by, description, content, slug, created_at, thumbnail, tags, publish, status)
 }, {
+    tableName: 'posts',
     defaultScope: {
         include: [
             {

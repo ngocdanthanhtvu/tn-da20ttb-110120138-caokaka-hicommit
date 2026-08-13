@@ -33,8 +33,9 @@ app.use(cookieParser());
 
 // Danh sách các domain được phép
 const allowedDomains = [
-  'http://192.168.0.103:5173',
-  'http://localhost:5173',
+    'http://192.168.0.103:5173',
+    'http://localhost:5173',
+    'https://bug-free-space-dollop-4p5v795xv6j2jj9g-5173.app.github.dev',
 ];
 
 app.use(cors({

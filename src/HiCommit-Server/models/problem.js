@@ -119,6 +119,7 @@ const Problem = sequelize.define('Problem', {
         allowNull: true
     }
 }, {
+    tableName: 'problems',
     defaultScope: {
         include: [
             {

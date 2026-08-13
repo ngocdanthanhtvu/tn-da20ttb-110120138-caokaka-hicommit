@@ -27,6 +27,8 @@ const Testcase = sequelize.define('Testcase', {
         type: DataTypes.TEXT('long'),
         allowNull: true
     }
+}, {
+    tableName: 'testcases'
 });
 
 module.exports = Testcase;

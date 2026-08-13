@@ -43,6 +43,7 @@ const Comment = sequelize.define('Comment', {
         }
     }
 }, {
+    tableName: 'comments',
     paranoid: true,
     timestamps: true,
     deletedAt: 'deletedAt',

@@ -27,6 +27,8 @@ const Example = sequelize.define('Example', {
         type: DataTypes.TEXT('long'),
         allowNull: true
     }
+}, {
+    tableName: 'examples'
 });
 
 // Example(id, input, output, note)
