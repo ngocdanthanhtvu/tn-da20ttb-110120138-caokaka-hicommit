@@ -168,12 +168,11 @@ function EditCourse() {
                         fontFamily: 'Plus Jakarta Sans',
                     }
                 });
-            console.log(response);
             // Chờ 1s rồi chuyển hướng
             navigate(`/admin/courses/${course_id}`);
 
         } catch (error) {
-            console.error('Error creating post:', error);
+            console.error('Error updating course:', error);
         }
     }
 
@@ -344,7 +343,7 @@ function EditCourse() {
                 </div>
                 <div className="mt-2 flex gap-3">
                     <Dialog>
-                        <DialogTrigger>
+                        <DialogTrigger asChild>
                             <Button className="w-fit px-5" size="lg">Cập nhật khoá học</Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -363,7 +362,7 @@ function EditCourse() {
                         </DialogContent>
                     </Dialog>
                     <Dialog>
-                        <DialogTrigger>
+                        <DialogTrigger asChild>
                             <Button className="w-fit px-5" variant="ghost" size="lg">Huỷ thay đổi</Button>
                         </DialogTrigger>
                         <DialogContent>

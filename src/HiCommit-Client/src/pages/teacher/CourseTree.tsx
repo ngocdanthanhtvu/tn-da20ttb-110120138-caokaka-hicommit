@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@radix-ui/react-dropdown-menu';
 import { updateUnitById, deleteUnitById } from '@/service/API/Unit';
+import { updateUnits } from '@/service/API/Course';
 import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
 import { deleteProblemByID } from '@/service/API/Problem';
@@ -41,9 +42,34 @@ const CourseTree = (props: any) => {
         return count;
     }
 
+    const shouldPersistMove = useRef(false);
+
     useEffect(() => {
         setDataFromAPI(data);
+
+        if (!shouldPersistMove.current) {
+            return;
+        }
+
+        shouldPersistMove.current = false;
+
+        const persistTree = async () => {
+            try {
+                await updateUnits(courseId as string, { units: data });
+            } catch (error) {
+                console.error('Error updating course tree:', error);
+                toast.error('Không thể lưu thay đổi cấu trúc khóa học');
+                refresh();
+            }
+        };
+
+        persistTree();
     }, [data]);
+
+    const handleTreeMove = (args: any) => {
+        shouldPersistMove.current = true;
+        controller.onMove(args);
+    };
 
     function Node({ node, dragHandle }: NodeRendererProps<any>) {
 
@@ -56,7 +82,6 @@ const CourseTree = (props: any) => {
             };
 
             try {
-                // Call createPost API
                 const response = await toast.promise(
                     updateUnitById(unit.course_id, unit.id, new_unit),
                     {
@@ -77,7 +102,7 @@ const CourseTree = (props: any) => {
                 refresh();
 
             } catch (error) {
-                console.error('Error creating post:', error);
+                console.error('Error updating unit:', error);
             }
         }
 
@@ -99,7 +124,6 @@ const CourseTree = (props: any) => {
             }
 
             try {
-                // Call createPost API
                 const response = await toast.promise(
                     deleteUnitById(unit.course_id, unit.id),
                     {
@@ -120,13 +144,12 @@ const CourseTree = (props: any) => {
                 refresh();
 
             } catch (error) {
-                console.error('Error creating post:', error);
+                console.error('Error deleting unit:', error);
             }
         }
 
         const handleDeleteProblem = async (problem_id: any) => {
             try {
-                // Call createPost API
                 const response = await toast.promise(
                     deleteProblemByID(problem_id),
                     {
@@ -147,27 +170,49 @@ const CourseTree = (props: any) => {
                 refresh();
 
             } catch (error) {
-                console.error('Error creating post:', error);
+                console.error('Error deleting problem:', error);
             }
         }
 
-        const handleMoveUp = (id: string) => {
+        const handleMoveUp = async (id: string) => {
             const index = dataFromAPI.findIndex((item: any) => item.id === id);
+
             if (index > 0) {
-                const temp = dataFromAPI[index];
-                dataFromAPI[index] = dataFromAPI[index - 1];
-                dataFromAPI[index - 1] = temp;
-                setDataFromAPI([...dataFromAPI]);
+                const newData = [...dataFromAPI];
+
+                [newData[index - 1], newData[index]] =
+                    [newData[index], newData[index - 1]];
+
+                setDataFromAPI(newData);
+
+                try {
+                    await updateUnits(courseId as string, { units: newData });
+                } catch (error) {
+                    console.error('Error reordering units:', error);
+                    toast.error('Không thể lưu thứ tự Lab/Chương');
+                    refresh();
+                }
             }
         };
 
-        const handleMoveDown = (id: string) => {
+        const handleMoveDown = async (id: string) => {
             const index = dataFromAPI.findIndex((item: any) => item.id === id);
-            if (index < dataFromAPI.length - 1) {
-                const temp = dataFromAPI[index];
-                dataFromAPI[index] = dataFromAPI[index + 1];
-                dataFromAPI[index + 1] = temp;
-                setDataFromAPI([...dataFromAPI]);
+
+            if (index >= 0 && index < dataFromAPI.length - 1) {
+                const newData = [...dataFromAPI];
+
+                [newData[index], newData[index + 1]] =
+                    [newData[index + 1], newData[index]];
+
+                setDataFromAPI(newData);
+
+                try {
+                    await updateUnits(courseId as string, { units: newData });
+                } catch (error) {
+                    console.error('Error reordering units:', error);
+                    toast.error('Không thể lưu thứ tự Lab/Chương');
+                    refresh();
+                }
             }
         };
 
@@ -186,7 +231,7 @@ const CourseTree = (props: any) => {
                     <div className="w-full hover:bg-zinc-100 cursor-move dark:hover:bg-zinc-900 p-2.5 pl-4 pr-3 pb-3 rounded-lg flex items-center gap-4 justify-between group/work">
                         <h3 className="flex items-start gap-3 flex-1">
                             <GripVertical className="w-5 h-5 opacity-70 translate-y-[2.5px]" />
-                            <p className="flex-1 flex">
+                            <div className="flex-1 flex">
                                 <span className='mr-2.5 line-clamp-1'>
                                     {node.data.name}
                                 </span>
@@ -199,7 +244,7 @@ const CourseTree = (props: any) => {
                                         ))
                                     }
                                 </div>
-                            </p>
+                            </div>
                         </h3>
                         <div className='flex items-center gap-1 invisible group-hover/work:visible'>
                             <Link to={`problem/${node.data.id}/edit`} className='cursor-pointer w-6 h-6'>
@@ -221,12 +266,12 @@ const CourseTree = (props: any) => {
                                         Sau khi xoá, bài tập này sẽ không thể truy cập.
                                     </DialogDescription>
                                     <DialogFooter className="mt-2">
-                                        <DialogClose>
+                                        <DialogClose asChild>
                                             <Button variant="ghost">
                                                 Đóng
                                             </Button>
                                         </DialogClose>
-                                        <DialogClose>
+                                        <DialogClose asChild>
                                             <Button className="w-fit px-4" variant="destructive" onClick={() => handleDeleteProblem(node?.data?.id)}>
                                                 Xoá
                                             </Button>
@@ -275,12 +320,12 @@ const CourseTree = (props: any) => {
                                     onKeyDown={handleKeyDown}
                                 />
                                 <DialogFooter className="mt-2">
-                                    <DialogClose>
+                                    <DialogClose asChild>
                                         <Button variant="ghost">
                                             Đóng
                                         </Button>
                                     </DialogClose>
-                                    <DialogClose>
+                                    <DialogClose asChild>
                                         <Button className="w-fit px-4" onClick={() => handleUpdateUnit(node.data)}>
                                             Cập nhật
                                         </Button>
@@ -302,12 +347,12 @@ const CourseTree = (props: any) => {
                                     Sau khi xoá, tất cả các bài tập trong Lab này sẽ được di chuyển sang Lab gần nhất.
                                 </DialogDescription>
                                 <DialogFooter className="mt-2">
-                                    <DialogClose>
+                                    <DialogClose asChild>
                                         <Button variant="ghost">
                                             Đóng
                                         </Button>
                                     </DialogClose>
-                                    <DialogClose>
+                                    <DialogClose asChild>
                                         <Button className="w-fit px-4" variant="destructive" onClick={() => handleDeleteUnit(node.data)}>
                                             Xoá
                                         </Button>
@@ -326,6 +371,7 @@ const CourseTree = (props: any) => {
                 data={data}
                 ref={treeRef}
                 {...controller}
+                onMove={handleTreeMove}
                 indent={5}
                 rowHeight={50}
                 overscanCount={1}

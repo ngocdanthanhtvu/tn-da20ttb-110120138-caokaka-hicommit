@@ -66,7 +66,6 @@ function EditPost() {
 
     const getPost = async () => {
         const response = await getPostBySlug(id as any);
-        console.log(response);
         setTitle(response.title);
         setDescription(response.description);
         setSlug(response.slug);
@@ -157,7 +156,6 @@ function EditPost() {
             thumbnail
         }
 
-        console.log(data);
 
         const response = await toast.promise(
             updatePost(id as any, data),

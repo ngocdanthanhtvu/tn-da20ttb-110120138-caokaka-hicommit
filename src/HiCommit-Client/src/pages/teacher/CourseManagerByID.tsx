@@ -157,10 +157,8 @@ function CourseManagerByID() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isOpenCSVUpload, setIsOpenCSVUpload] = useState(false);
     const [membersToAdd, setMembersToAdd] = useState<string[]>([]);
-
     useEffect(() => {
         setKey(prevKey => prevKey + 1);
-        handleUpdateUnit(course_id as string, dataFromAPI);
     }, [dataFromAPI]);
 
     const handleUpdateKey = async () => {
@@ -282,7 +280,6 @@ function CourseManagerByID() {
                 navigate("/course-manager");
             }, 500);
 
-            // console.log(response);
         } catch (error) {
             console.error('Error creating lab:', error);
         }
@@ -312,7 +309,6 @@ function CourseManagerByID() {
     }
 
     const handleAddMultipleMembersToCourse = async () => {
-        console.log(membersToAdd);
         const response = await toast.promise(
             addMultipleMembersToCourse(course_id as string, membersToAdd),
             {
@@ -342,7 +338,6 @@ function CourseManagerByID() {
                     const emails = results.data.slice(1).map((row: any) => row[0]).filter(Boolean);
                     // Gọi API để thêm các email này vào khóa học
                     const uniqueEmails = [...new Set(emails)];
-                    console.log(uniqueEmails);
                     setMembersToAdd(uniqueEmails as string[]);
                 },
                 header: false
@@ -432,7 +427,6 @@ function CourseManagerByID() {
             });
 
             setMembers(members_arr);
-            console.log(response);
         } catch (error) {
             console.error('Error getting course:', error);
         }
@@ -450,7 +444,6 @@ function CourseManagerByID() {
         try {
             const response = await updateUnits(course_id as string, { units: units });
         } catch (error) {
-            // console.error('Error updating lab:', error);
         }
     }
 
@@ -488,7 +481,6 @@ function CourseManagerByID() {
                 });
             setNewLab('');
             handleGetCourseData();
-            // console.log(response);
         } catch (error) {
             console.error('Error creating lab:', error);
         }
@@ -587,7 +579,10 @@ function CourseManagerByID() {
                                                             <CommandEmpty>Không có kết quả phù hợp.</CommandEmpty>
                                                             {
                                                                 members?.map((member: any) => (
-                                                                    <CommandItem className="p-2.5 px-0 mb-1 pb-3 justify-between items-center aria-selected:bg-transparent rounded-none border-b">
+                                                                    <CommandItem
+                                                                        key={member?.User?.id ?? member?.email}
+                                                                        className="p-2.5 px-0 mb-1 pb-3 justify-between items-center aria-selected:bg-transparent rounded-none border-b"
+                                                                    >
                                                                         <div className="flex gap-3 items-center">
                                                                             <Avatar>
                                                                                 <AvatarImage className="w-10 rounded-full" src={member?.User ? member?.User?.avatar_url : 'https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3383.jpg'} />
@@ -654,18 +649,21 @@ function CourseManagerByID() {
                                     </Tooltip>
                                 </TooltipProvider>
                                 <Dialog>
-                                    <DialogTrigger>
-                                        <TooltipProvider delayDuration={100}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button size="icon" variant="outline"><Settings className="w-[1.2rem] h-[1.2rem]" /></Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom">
-                                                    Cài đặt khoá học
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </DialogTrigger>
+                                    <TooltipProvider delayDuration={100}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <DialogTrigger asChild>
+                                                    <Button size="icon" variant="outline">
+                                                        <Settings className="w-[1.2rem] h-[1.2rem]" />
+                                                    </Button>
+                                                </DialogTrigger>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom">
+                                                Cài đặt khoá học
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+
                                     <DialogContent className="max-w-[60%] ">
                                         <DialogHeader>
                                             <DialogTitle>Cài đặt khoá học</DialogTitle>
@@ -702,7 +700,7 @@ function CourseManagerByID() {
                                                                     <p className="text-sm opacity-50 dark:font-light">Sau khi xoá, khoá học này sẽ không thể truy cập được.</p>
                                                                 </Label>
                                                                 <Dialog>
-                                                                    <DialogTrigger>
+                                                                    <DialogTrigger asChild>
                                                                         <Button variant="destructive" size="sm" className="border border-destructive/70 bg-destructive/10 hover:bg-destructive/20 dark:bg-destructive/40 dark:hover:bg-destructive/50 text-destructive dark:text-white">
                                                                             <Trash2 className="w-4 h-4 mr-2" />Xoá khoá học
                                                                         </Button>
@@ -733,7 +731,7 @@ function CourseManagerByID() {
                                                                 <div className="flex justify-between gap-10 items-center">
                                                                     <Label className="flex-1 flex flex-col gap-1 cursor-pointer" htmlFor="public-course-switch">
                                                                         <h3 className="text-[16px]">Hạn chế truy cập</h3>
-                                                                        <p className="text-sm opacity-50 dark:font-light">Yêu cầu người dùng nhập mật khẩu khi đăng ký tham gia khoá học này.</p>
+                                                                        <p className="text-sm opacity-50 dark:font-light">Yêu cầu người dùng nhập khóa tham gia khi đăng ký vào khoá học này.</p>
                                                                     </Label>
                                                                     <Switch checked={!course?.public} onCheckedChange={() => handlePublicCourse()} id="public-course-switch" />
                                                                 </div>
@@ -744,7 +742,9 @@ function CourseManagerByID() {
                                                                             <KeyRound className="absolute left-3 h-4 w-4 text-muted-foreground ml-1" />
                                                                             <Input
                                                                                 type={isPasswordVisible ? "text" : "password"}
-                                                                                placeholder="Đặt mật khẩu tham gia"
+                                                                                name="course-join-key"
+                                                                                autoComplete="new-password"
+                                                                                placeholder="Đặt khóa tham gia"
                                                                                 className="w-full pl-11 h-[44px]"
                                                                                 value={enrolKey}
                                                                                 onChange={e => setEnrolKey(e.target.value)}
@@ -760,7 +760,7 @@ function CourseManagerByID() {
                                                                         </div>
                                                                         {
                                                                             enrolKey.length > 0 && enrolKey !== course.join_key &&
-                                                                            <Button className="w-fit px-4" onClick={() => handleUpdateKey()}>Cập nhật mật khẩu</Button>
+                                                                            <Button className="w-fit px-4" onClick={() => handleUpdateKey()}>Cập nhật khóa tham gia</Button>
                                                                         }
                                                                     </>
                                                                 }
@@ -833,7 +833,7 @@ function CourseManagerByID() {
                                                                 <div className="flex gap-4 items-center w-full">
                                                                     <CommandInput placeholder="Tìm kiếm..." />
                                                                     <DropdownMenu>
-                                                                        <DropdownMenuTrigger>
+                                                                        <DropdownMenuTrigger asChild>
                                                                             <Button className="pl-4">
                                                                                 <UserPlus className="size-4 mr-1.5" />Thêm<i className="fa-solid fa-sort-down mb-1.5 ml-3 text-[12px]"></i>
                                                                             </Button>
@@ -936,7 +936,10 @@ function CourseManagerByID() {
                                                                     <CommandEmpty>Không có kết quả phù hợp.</CommandEmpty>
                                                                     {
                                                                         members?.map((member: any) => (
-                                                                            <CommandItem className="p-2.5 px-0 mb-1 pb-3 justify-between items-center aria-selected:bg-transparent rounded-none border-b">
+                                                                            <CommandItem
+                                                                                key={member?.User?.id ?? member?.email}
+                                                                                className="p-2.5 px-0 mb-1 pb-3 justify-between items-center aria-selected:bg-transparent rounded-none border-b"
+                                                                            >
                                                                                 <div className="flex gap-3 items-center">
                                                                                     <Avatar>
                                                                                         <AvatarImage className="w-10 rounded-full" src={member?.User ? member?.User?.avatar_url : 'https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3383.jpg'} />
@@ -972,7 +975,7 @@ function CourseManagerByID() {
 
                                                                                         return (
                                                                                             <Dialog>
-                                                                                                <DialogTrigger>
+                                                                                                <DialogTrigger asChild>
                                                                                                     <Button size="sm" className="text-xs h-7 px-2" variant="secondary">Xoá</Button>
                                                                                                 </DialogTrigger>
                                                                                                 <DialogContent>
@@ -1043,12 +1046,12 @@ function CourseManagerByID() {
                                 onChange={e => setNewLab(e.target.value)}
                             />
                             <DialogFooter className="mt-2">
-                                <DialogClose>
+                                <DialogClose asChild>
                                     <Button variant="ghost">
                                         Đóng
                                     </Button>
                                 </DialogClose>
-                                <DialogClose>
+                                <DialogClose asChild>
                                     <Button className="w-fit px-4" onClick={() => handleCreateLab()}>Tạo</Button>
                                 </DialogClose>
                             </DialogFooter>

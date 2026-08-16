@@ -133,7 +133,6 @@ function CreateContest() {
             enrol_key: enrolKey
         }
 
-        console.log(data);
 
         const response = await toast.promise(
             createContest(data),

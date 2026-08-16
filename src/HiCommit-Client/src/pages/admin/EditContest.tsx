@@ -87,7 +87,6 @@ function EditContest() {
     const getData = async () => {
         setLoading(true);
         const response = await getContestByIDForAdmin(id as any);
-        console.log(response);
         setName(response.name);
         setDescription(response.description);
         setSlug(response.slug);
@@ -97,8 +96,7 @@ function EditContest() {
             hours: Math.floor(response.duration / 3600),
             minutes: Math.floor((response.duration % 3600) / 60)
         });
-        setIsPublic(!response.public);
-        setEnrolKey(response.join_key);
+        setEnrolKey(response.join_key ?? "");
         setIsPublic(response.public);
         setLoading(false);
     }
@@ -151,7 +149,6 @@ function EditContest() {
             join_key: enrolKey
         }
 
-        console.log(data);
 
         const response = await toast.promise(
             updateContestByID(id as any, data),
@@ -419,7 +416,7 @@ function EditContest() {
                             </div>
                             <div className="mt-2 flex gap-3">
                                 <Dialog>
-                                    <DialogTrigger>
+                                    <DialogTrigger asChild>
                                         <Button className="w-fit px-5" variant="secondary">
                                             <ArrowLeft className="size-4 mr-2" />
                                             Huỷ thay đổi
@@ -441,7 +438,7 @@ function EditContest() {
                                     </DialogContent>
                                 </Dialog>
                                 <Dialog>
-                                    <DialogTrigger>
+                                    <DialogTrigger asChild>
                                         <Button className="w-fit">Cập nhật cuộc thi</Button>
                                     </DialogTrigger>
                                     <DialogContent>

@@ -111,7 +111,6 @@ function EditProblem() {
             setLimit(response.limit);
             setExamples(response.examples);
             setTestCases(response.testcases);
-            console.log(response);
         } catch (error) {
             console.error('Error getting problem:', error);
         }
@@ -131,7 +130,6 @@ function EditProblem() {
             testcases: testCases,
         }
 
-        console.log(data);
 
         try {
             // Call createPost API
@@ -151,14 +149,13 @@ function EditProblem() {
                         fontFamily: 'Plus Jakarta Sans',
                     }
                 });
-            console.log(response);
 
             setTimeout(() => {
                 navigate(`/course-manager/${course_id}`);
             }, 500);
 
         } catch (error) {
-            console.error('Error creating post:', error);
+            console.error('Error updating problem:', error);
         }
     }
 
@@ -440,7 +437,7 @@ function EditProblem() {
                 </div>
                 <div className="mt-2 flex gap-3">
                     <Dialog>
-                        <DialogTrigger>
+                        <DialogTrigger asChild>
                             <Button className="w-fit">Cập nhật bài tập</Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -461,7 +458,7 @@ function EditProblem() {
                         </DialogContent>
                     </Dialog>
                     <Dialog>
-                        <DialogTrigger>
+                        <DialogTrigger asChild>
                             <Button className="w-fit px-5" variant="ghost" size="lg">Huỷ thay đổi</Button>
                         </DialogTrigger>
                         <DialogContent>
@@ -514,10 +511,10 @@ const Example = (props: any) => {
                             Sau khi xoá, ví dụ này sẽ không thể khôi phục.
                         </DialogDescription>
                         <DialogFooter className="mt-2">
-                            <DialogClose>
+                            <DialogClose asChild>
                                 <Button variant="ghost">Đóng</Button>
                             </DialogClose>
-                            <DialogClose>
+                            <DialogClose asChild>
                                 <Button className="w-fit px-4" variant="destructive" onClick={() => onDelete(index)}>Xoá</Button>
                             </DialogClose>
                         </DialogFooter>
@@ -613,10 +610,10 @@ const TestCase = (props: any) => {
                             Sau khi xoá, Test-case này sẽ không thể khôi phục.
                         </DialogDescription>
                         <DialogFooter className="mt-2">
-                            <DialogClose>
+                            <DialogClose asChild>
                                 <Button variant="ghost">Đóng</Button>
                             </DialogClose>
-                            <DialogClose>
+                            <DialogClose asChild>
                                 <Button className="w-fit px-4" variant="destructive" onClick={() => onDelete(index)}>Xoá</Button>
                             </DialogClose>
                         </DialogFooter>

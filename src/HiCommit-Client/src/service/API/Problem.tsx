@@ -1,4 +1,3 @@
-import { da } from "date-fns/locale";
 import { axiosInstance } from "./AxiosConfig";
 
 const getProblems = async () => {
@@ -42,13 +41,8 @@ const getProblemByIDForAdmin = async (id: string) => {
 }
 
 const createProblem = async (data: any) => {
-    try {
-        const response = await axiosInstance.post(`/problems/create`, data);
-        return response.data;
-    } catch (error) {
-        console.error('Error creating problem:', error);
-        throw error;
-    }
+    const response = await axiosInstance.post(`/problems/create`, data);
+    return response.data;
 }
 
 const updateProblem = async (id: string, data: any) => {

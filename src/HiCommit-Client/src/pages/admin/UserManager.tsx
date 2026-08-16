@@ -84,7 +84,6 @@ function UserManager() {
 
     const getData = async () => {
         const users = await getUsers();
-        // console.log(users);
         const currentUser = users.find((user: any) => user.id === loginContext.user?.id);
         users.splice(users.indexOf(currentUser), 1);
         users.unshift(currentUser);
@@ -369,12 +368,12 @@ function UserManager() {
                 <div className="flex flex-col gap-5">
                     <div className="w-full">
                         <div className="flex items-center py-4 gap-3 justify-end">
-                            <p className="flex-1 text-lg pt-2">
+                            <div className="flex-1 text-lg pt-2">
                                 <span className="font-semibold">Danh sách người dùng</span>
                                 <Badge variant="secondary" className="px-1.5 rounded-sm ml-2 inline">
                                     {data.length}
                                 </Badge>
-                            </p>
+                            </div>
                             <Button size="icon"><UserRoundPlus className="w-[18px] h-[18px]" /></Button>
                             <Input
                                 placeholder="Tìm kiếm người dùng ..."

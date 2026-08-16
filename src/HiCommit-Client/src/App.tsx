@@ -9,7 +9,7 @@ declare global {
 
 // Remove the declaration for "*.svg" module
 
-import { Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import './App.css'
 import ClientLayout from './layouts/Client';
 import Login from './layouts/Login'
@@ -34,7 +34,20 @@ function App() {
     <div className='App'>
       <Routes>
         <Route path="/*" element={<ClientLayout />} />
-        <Route path="/admin/*" element={<AdminLayout />} />
+        <Route
+            path="/admin/*"
+            element={
+              loginContext.loading ? null :
+              !loginContext.user ? (
+                <Navigate to="/login" replace />
+              ) :
+              loginContext.user.role === "ADMIN" ? (
+                <AdminLayout />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
         <Route path="/login" element={<Login />} />
       </Routes>
       <Toaster position="bottom-center" />

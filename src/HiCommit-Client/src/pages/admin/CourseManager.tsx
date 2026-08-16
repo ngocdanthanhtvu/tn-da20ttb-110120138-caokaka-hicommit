@@ -68,7 +68,7 @@ import toast from "react-hot-toast";
 import { useLogin } from "@/service/LoginContext";
 import { AlertDialogFooter } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { getCoursesForAdmin, togglePublishCourse } from "@/service/API/Course";
+import { deleteCourseByID, getCoursesForAdmin, togglePublishCourse } from "@/service/API/Course";
 import parse from "html-react-parser";
 import { Switch } from "@/components/ui/switch";
 import { formatTimeAgo } from "@/service/DateTimeService";
@@ -129,6 +129,32 @@ function CourseManager() {
                 }
             });
         getData();
+    }
+
+    const handleDeleteCourse = async (id: string) => {
+        try {
+            await toast.promise(
+                deleteCourseByID(id),
+                {
+                    loading: 'Đang xoá...',
+                    success: 'Xoá khoá học thành công',
+                    error: 'Xoá khoá học không thành công'
+                },
+                {
+                    style: {
+                        borderRadius: '8px',
+                        background: '#222',
+                        color: '#fff',
+                        paddingLeft: '15px',
+                        fontFamily: 'Plus Jakarta Sans',
+                    }
+                }
+            );
+
+            await getData();
+        } catch (error) {
+            console.error('Error deleting course:', error);
+        }
     }
 
     useEffect(() => {
@@ -268,7 +294,7 @@ function CourseManager() {
                         <div className='flex items-center justify-center gap-2'>
                             <Dialog>
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger>
+                                    <DropdownMenuTrigger asChild>
                                         <Button variant="outline" size="icon" className="w-8 h-8">
                                             <Ellipsis className="w-[14px]" />
                                         </Button>
@@ -304,13 +330,17 @@ function CourseManager() {
                                         Sau khi xoá, khoá học này sẽ không thể khôi phục.
                                     </DialogDescription>
                                     <AlertDialogFooter className="mt-2">
-                                        <DialogClose>
+                                        <DialogClose asChild>
                                             <Button variant="ghost">
                                                 Đóng
                                             </Button>
                                         </DialogClose>
-                                        <DialogClose>
-                                            <Button className="w-fit px-4" variant="destructive">
+                                        <DialogClose asChild>
+                                            <Button
+                                                className="w-fit px-4"
+                                                variant="destructive"
+                                                onClick={() => handleDeleteCourse(row.getValue("id"))}
+                                            >
                                                 Xoá
                                             </Button>
                                         </DialogClose>
@@ -362,12 +392,12 @@ function CourseManager() {
                 <div className="flex flex-col gap-5">
                     <div className="w-full">
                         <div className="flex items-center py-4 gap-3 justify-end">
-                            <p className="flex-1 text-lg pt-2">
+                            <div className="flex-1 text-lg pt-2">
                                 <span className="font-semibold">Danh sách khoá học</span>
                                 <Badge variant="secondary" className="px-1.5 rounded-sm ml-2 inline">
                                     {data.length}
                                 </Badge>
-                            </p>
+                            </div>
                             <Link to="/admin/courses/create">
                                 <Button size="icon"><Plus className="w-[18px] h-[18px]" /></Button>
                             </Link>

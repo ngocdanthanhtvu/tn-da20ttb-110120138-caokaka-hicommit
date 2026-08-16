@@ -140,7 +140,6 @@ function CreatePost() {
             thumbnail
         }
 
-        console.log(data);
 
         const response = await toast.promise(
             createPost(data),

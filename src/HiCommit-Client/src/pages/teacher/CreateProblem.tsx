@@ -40,6 +40,18 @@ import { toast } from "react-hot-toast";
 
 import { createProblem } from "@/service/API/Problem";
 
+const generateSlug = (value: string) => {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+};
+
 function CreateProblem() {
 
     const course_id = useParams<{ course_id: string }>().course_id;
@@ -112,7 +124,6 @@ function CreateProblem() {
             parent: course_id
         }
 
-        console.log(data);
 
         try {
             // Call createPost API
@@ -121,7 +132,8 @@ function CreateProblem() {
                 {
                     loading: 'Đang lưu...',
                     success: 'Tạo bài tập thành công',
-                    error: 'Tạo bài tập thất bại'
+                    error: (error: any) =>
+                        error?.response?.data?.message || 'Tạo bài tập thất bại'
                 },
                 {
                     style: {
@@ -132,10 +144,9 @@ function CreateProblem() {
                         fontFamily: 'Plus Jakarta Sans',
                     }
                 });
-            console.log(response);
             navigate(`/course-manager/${course_id}`);
         } catch (error) {
-            console.error('Error creating post:', error);
+            console.error('Error creating problem:', error);
         }
     }
 
@@ -234,11 +245,28 @@ function CreateProblem() {
                     <div className="flex flex-col gap-6">
                         <div className="flex gap-2 flex-col">
                             <h4 className="font-medium after:content-['*'] after:ml-1 after:text-green-500">Tên bài tập</h4>
-                            <Input placeholder="Nhập tên bài tập" className="placeholder:italic" value={name} onChange={e => setName(e.target.value)} />
+                            <Input
+                                placeholder="Nhập tên bài tập"
+                                className="placeholder:italic"
+                                value={name}
+                                onChange={e => {
+                                    const newName = e.target.value;
+                                    setName(newName);
+                                    setSlug(generateSlug(newName));
+                                }}
+                            />
                         </div>
                         <div className="flex gap-2 flex-col">
                             <h4 className="font-medium after:content-['*'] after:ml-1 after:text-green-500">Mã bài tập</h4>
-                            <Input placeholder="Nhập đường dẫn tuỳ chỉnh" className="placeholder:italic" value={slug} onChange={e => setSlug(e.target.value)} />
+                            <Input
+                                placeholder="Mã bài tập được tạo tự động"
+                                className="placeholder:italic"
+                                value={slug}
+                                onChange={e => setSlug(generateSlug(e.target.value))}
+                            />
+                            <span className="italic text-xs opacity-50 dark:font-light">
+                                * Mã bài tập được tạo tự động từ tên và phải là duy nhất.
+                            </span>
                         </div>
                         <div className="flex gap-2 flex-col">
                             <h4 className="font-medium after:content-['*'] after:ml-1 after:text-green-500">Tag</h4>

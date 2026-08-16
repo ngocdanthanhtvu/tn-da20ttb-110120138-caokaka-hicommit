@@ -92,13 +92,11 @@ function PostManager() {
 
     const getData = async () => {
         const response = await getPostsForAdmin();
-        console.log(response);
         setData(response);
     }
 
     const getPendingPosts = async () => {
         const response = await getInActivePosts();
-        console.log(response);
         setInActivePosts(response);
     }
 
@@ -128,25 +126,27 @@ function PostManager() {
                     <TabsList className="bg-transparent justify-start rounded-none pb-3 px-0 border-b-[2px] border-secondary/40 w-full">
                         <TabsTrigger
                             value="all"
-                            className="px-1 border-b-2 border-b-transparent drop-shadow-none data-[state=active]:border-b-primary rounded-none bg-transparent data-[state=active]:bg-transparent duration-500"
+                            className="px-3 border-b-2 border-b-transparent drop-shadow-none
+                                    data-[state=active]:border-b-primary rounded-none
+                                    bg-transparent data-[state=active]:bg-transparent
+                                    duration-500 hover:bg-secondary/60"
                         >
-                            <Button variant="ghost" size="sm" className="hover:bg-secondary/60">
-                                Đã duyệt
-                                <Badge variant="secondary" className="px-1.5 rounded-sm ml-2">
-                                    {data.length}
-                                </Badge>
-                            </Button>
+                            Đã duyệt
+                            <Badge variant="secondary" className="px-1.5 rounded-sm ml-2">
+                                {data.length}
+                            </Badge>
                         </TabsTrigger>
                         <TabsTrigger
                             value="pending"
-                            className="px-1 border-b-2 border-b-transparent drop-shadow-none data-[state=active]:border-b-primary rounded-none bg-transparent data-[state=active]:bg-transparent duration-500"
+                            className="px-3 border-b-2 border-b-transparent drop-shadow-none
+                                    data-[state=active]:border-b-primary rounded-none
+                                    bg-transparent data-[state=active]:bg-transparent
+                                    duration-500 hover:bg-secondary/60"
                         >
-                            <Button variant="ghost" size="sm" className="hover:bg-secondary/60">
-                                Đang chờ duyệt
-                                <Badge variant="secondary" className="px-1.5 rounded-sm ml-2">
-                                    {inActivePosts.length}
-                                </Badge>
-                            </Button>
+                            Đang chờ duyệt
+                            <Badge variant="secondary" className="px-1.5 rounded-sm ml-2">
+                                {inActivePosts.length}
+                            </Badge>
                         </TabsTrigger>
                     </TabsList>
                     <TabsContent value="all" className="w-full">
@@ -390,12 +390,12 @@ function ActiveTab(props: any) {
                                         Sau khi xoá, bài viết này sẽ không thể khôi phục.
                                     </DialogDescription>
                                     <DialogFooter className="mt-2">
-                                        <DialogClose>
+                                        <DialogClose asChild>
                                             <Button variant="ghost">
                                                 Đóng
                                             </Button>
                                         </DialogClose>
-                                        <DialogClose>
+                                        <DialogClose asChild>
                                             <Button className="w-fit px-4" variant="destructive" onClick={() => handleDeleltePost(row.getValue("id"))}>
                                                 Xoá
                                             </Button>
@@ -745,12 +745,12 @@ function InActiveTab(props: any) {
                                         Sau khi xoá, bài viết này sẽ không thể khôi phục.
                                     </DialogDescription>
                                     <DialogFooter className="mt-2">
-                                        <DialogClose>
+                                        <DialogClose asChild>
                                             <Button variant="ghost">
                                                 Đóng
                                             </Button>
                                         </DialogClose>
-                                        <DialogClose>
+                                        <DialogClose asChild>
                                             <Button className="w-fit px-4" variant="destructive" onClick={() => handleDeleltePost(row.getValue("id"))}>
                                                 Xoá
                                             </Button>
@@ -830,12 +830,12 @@ function InActiveTab(props: any) {
                                         Sau khi duyệt, người dùng có thể xem được bài viết này.
                                     </DialogDescription>
                                     <DialogFooter className="mt-2">
-                                        <DialogClose>
+                                        <DialogClose asChild>
                                             <Button variant="ghost">
                                                 Đóng
                                             </Button>
                                         </DialogClose>
-                                        <DialogClose>
+                                        <DialogClose asChild>
                                             <Button className="w-fit px-4" onClick={() => handleActivePost(row.getValue("id"))}>
                                                 Duyệt bài viết này
                                             </Button>

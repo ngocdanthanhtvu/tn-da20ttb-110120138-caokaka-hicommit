@@ -163,7 +163,6 @@ function CourseDashboard() {
 
     useEffect(() => {
         setKey(prevKey => prevKey + 1);
-        handleUpdateUnit(course_id as string, dataFromAPI);
     }, [dataFromAPI]);
 
     const handleUpdateKey = async () => {
@@ -285,7 +284,6 @@ function CourseDashboard() {
                 navigate("/course-manager");
             }, 500);
 
-            // console.log(response);
         } catch (error) {
             console.error('Error creating lab:', error);
         }
@@ -315,7 +313,6 @@ function CourseDashboard() {
     }
 
     const handleAddMultipleMembersToCourse = async () => {
-        console.log(membersToAdd);
         const response = await toast.promise(
             addMultipleMembersToCourse(course_id as string, membersToAdd),
             {
@@ -345,7 +342,6 @@ function CourseDashboard() {
                     const emails = results.data.slice(1).map((row: any) => row[0]).filter(Boolean);
                     // Gọi API để thêm các email này vào khóa học
                     const uniqueEmails = [...new Set(emails)];
-                    console.log(uniqueEmails);
                     setMembersToAdd(uniqueEmails as string[]);
                 },
                 header: false
@@ -435,7 +431,6 @@ function CourseDashboard() {
             });
 
             setMembers(members_arr);
-            console.log(response);
         } catch (error) {
             console.error('Error getting course:', error);
         }
@@ -453,7 +448,6 @@ function CourseDashboard() {
         try {
             const response = await updateUnits(course_id as string, { units: units });
         } catch (error) {
-            // console.error('Error updating lab:', error);
         }
     }
 
@@ -491,7 +485,6 @@ function CourseDashboard() {
                 });
             setNewLab('');
             handleGetCourseData();
-            // console.log(response);
         } catch (error) {
             console.error('Error creating lab:', error);
         }
@@ -569,11 +562,15 @@ function CourseDashboard() {
                                         <TooltipProvider delayDuration={100}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <DialogTrigger>
-                                                        <Badge className="text-green-600 dark:text-green-500 flex gap-1.5 border-primary px-2 py-0 rounded-md hover:bg-secondary cursor-pointer ml-2" variant="outline">
+                                                    <DialogTrigger asChild>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            className="h-auto text-green-600 dark:text-green-500 flex gap-1.5 border-primary px-2 py-0 rounded-md hover:bg-secondary cursor-pointer ml-2"
+                                                        >
                                                             <UsersRound className="w-3.5" />
                                                             <span>{members?.length}</span>
-                                                        </Badge>
+                                                        </Button>
                                                     </DialogTrigger>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="bottom">
@@ -663,18 +660,20 @@ function CourseDashboard() {
                                     </Tooltip>
                                 </TooltipProvider>
                                 <Dialog>
-                                    <DialogTrigger>
-                                        <TooltipProvider delayDuration={100}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button size="icon" variant="outline"><Settings className="w-[1.2rem] h-[1.2rem]" /></Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom">
-                                                    Cài đặt khoá học
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </DialogTrigger>
+                                    <TooltipProvider delayDuration={100}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <DialogTrigger asChild>
+                                                    <Button size="icon" variant="outline">
+                                                        <Settings className="w-[1.2rem] h-[1.2rem]" />
+                                                    </Button>
+                                                </DialogTrigger>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom">
+                                                Cài đặt khoá học
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                     <DialogContent className="max-w-[60%] ">
                                         <DialogHeader>
                                             <DialogTitle>Cài đặt khoá học</DialogTitle>
@@ -708,7 +707,7 @@ function CourseDashboard() {
                                                                     <p className="text-sm opacity-50 dark:font-light">Sau khi xoá, khoá học này sẽ không thể truy cập được.</p>
                                                                 </Label>
                                                                 <Dialog>
-                                                                    <DialogTrigger>
+                                                                    <DialogTrigger asChild>
                                                                         <Button variant="destructive" size="sm" className="border border-destructive/70 bg-destructive/10 hover:bg-destructive/20 dark:bg-destructive/40 dark:hover:bg-destructive/50 text-destructive dark:text-white">
                                                                             <Trash2 className="w-4 h-4 mr-2" />Xoá khoá học
                                                                         </Button>
@@ -793,7 +792,7 @@ function CourseDashboard() {
                                                                 <div className="flex gap-4 items-center w-full">
                                                                     <CommandInput placeholder="Tìm kiếm..." />
                                                                     <DropdownMenu>
-                                                                        <DropdownMenuTrigger>
+                                                                        <DropdownMenuTrigger asChild>
                                                                             <Button className="pl-4">
                                                                                 <UserPlus className="size-4 mr-1.5" />Thêm<i className="fa-solid fa-sort-down mb-1.5 ml-3 text-[12px]"></i>
                                                                             </Button>
@@ -932,7 +931,7 @@ function CourseDashboard() {
 
                                                                                         return (
                                                                                             <Dialog>
-                                                                                                <DialogTrigger>
+                                                                                                <DialogTrigger asChild>
                                                                                                     <Button size="sm" className="text-xs h-7 px-2" variant="secondary">Xoá</Button>
                                                                                                 </DialogTrigger>
                                                                                                 <DialogContent>
@@ -1000,12 +999,12 @@ function CourseDashboard() {
                                 onChange={e => setNewLab(e.target.value)}
                             />
                             <DialogFooter className="mt-2">
-                                <DialogClose>
+                                <DialogClose asChild>
                                     <Button variant="ghost">
                                         Đóng
                                     </Button>
                                 </DialogClose>
-                                <DialogClose>
+                                <DialogClose asChild>
                                     <Button className="w-fit px-4" onClick={() => handleCreateLab()}>Tạo</Button>
                                 </DialogClose>
                             </DialogFooter>

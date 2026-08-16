@@ -137,7 +137,6 @@ function ContestManager() {
 
     const getData = async () => {
         const problems = await getContestsForAdmin();
-        console.log(problems);
         setData(problems);
         setLoading(false);
     }
@@ -160,7 +159,6 @@ function ContestManager() {
                 }
             });
 
-        console.log(response);
         getData();
     }
 
@@ -182,7 +180,6 @@ function ContestManager() {
                 }
             });
 
-        console.log(response);
         getData();
     }
 
@@ -284,7 +281,7 @@ function ContestManager() {
             },
             cell: ({ row }) => (
                 <div className='flex flex-col gap-2'>
-                    <p className="line-clamp-2 font-medium">
+                    <div className="line-clamp-2 font-medium">
                         <Badge variant="secondary" className="uppercase rounded-md bg-secondary/50 dark:bg-secondary/60 text-[12px] p-0.5 px-2 font-normal leading-5 cursor-pointer text-nowrap mr-1" onClick={() => handleCopyText(row.getValue("slug"))}>
                             {
                                 row.getValue("pinned") ? <Pin className="size-[14px] mr-1 inline" /> : null
@@ -292,7 +289,7 @@ function ContestManager() {
                             {row.getValue("slug")}
                         </Badge>
                         <Link to={`/admin/contests/${row.getValue("id")}`} className='leading-6 hover:text-primary'>{row.getValue("name")}</Link>
-                    </p>
+                    </div>
                     {
                         (row.getValue("start_time") as any) > moment(new Date().getTime()).unix() ?
                             <span className="italic text-amber-600 dark:text-amber-500 font-semibold dark:font-medium mb-1.5">
@@ -449,7 +446,7 @@ function ContestManager() {
                         <div className='flex items-center justify-center gap-2'>
                             <Dialog>
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger>
+                                    <DropdownMenuTrigger asChild>
                                         <Button variant="outline" size="icon" className="w-8 h-8">
                                             <Ellipsis className="w-[14px]" />
                                         </Button>
@@ -548,12 +545,12 @@ function ContestManager() {
                 <div className="flex flex-col gap-5">
                     <div className="w-full">
                         <div className="flex items-center py-4 gap-3 justify-end">
-                            <p className="flex-1 text-lg pt-2">
+                            <div className="flex-1 text-lg pt-2">
                                 <span className="font-semibold">Danh sách cuộc thi</span>
                                 <Badge variant="secondary" className="px-1.5 rounded-sm ml-2 inline">
                                     {data.length}
                                 </Badge>
-                            </p>
+                            </div>
                             <Link to="create">
                                 <Button size="icon"><Plus className="w-[18px] h-[18px]" /></Button>
                             </Link>

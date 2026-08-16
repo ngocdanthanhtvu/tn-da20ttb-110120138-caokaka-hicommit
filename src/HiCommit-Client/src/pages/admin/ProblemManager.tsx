@@ -130,7 +130,6 @@ function ProblemManager() {
 
     const getData = async () => {
         const problems = await getProblemsForAdmin();
-        console.log(problems);
         setData(problems);
         setLoading(false);
     }
@@ -438,7 +437,7 @@ function ProblemManager() {
                         <div className='flex items-center justify-center gap-2'>
                             <Dialog>
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger>
+                                    <DropdownMenuTrigger asChild>
                                         <Button variant="outline" size="icon" className="w-8 h-8">
                                             <Ellipsis className="w-[14px]" />
                                         </Button>
@@ -522,12 +521,12 @@ function ProblemManager() {
                 <div className="flex flex-col gap-5">
                     <div className="w-full">
                         <div className="flex items-center py-4 gap-3 justify-end">
-                            <p className="flex-1 text-lg pt-2">
+                            <div className="flex-1 text-lg pt-2">
                                 <span className="font-semibold">Danh sách bài tập</span>
                                 <Badge variant="secondary" className="px-1.5 rounded-sm ml-2 inline">
                                     {data.length}
                                 </Badge>
-                            </p>
+                            </div>
                             <Link to="create">
                                 <Button size="icon"><Plus className="w-[18px] h-[18px]" /></Button>
                             </Link>

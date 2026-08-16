@@ -35,9 +35,26 @@ const createProblem = async (req, res) => {
 
     try {
         const { name, slug, tags, language, description, input, output, limit, examples, testcases, score, type, level, unit, parent } = req.body;
+        const normalizedSlug = slug?.trim();
 
-        if (!name || !slug || !tags || !language || !description || !input || !output || !examples || !testcases || !type) {
-            return res.status(400).json({ message: 'Please fill in all fields' });
+        if (!name || !normalizedSlug || !tags || !language || !description || !input || !output || !examples || !testcases || !type) {
+            await transaction.rollback();
+            return res.status(400).json({ message: 'Vui lòng nhập đầy đủ các trường bắt buộc.' });
+        }
+
+        // Slug must remain globally unique, including soft-deleted problems.
+        const existingProblem = await Problem.findOne({
+            where: { slug: normalizedSlug },
+            paranoid: false,
+            transaction
+        });
+
+        if (existingProblem) {
+            await transaction.rollback();
+            return res.status(409).json({
+                code: 'DUPLICATE_SLUG',
+                message: 'Mã bài tập đã tồn tại.'
+            });
         }
 
         // Duyệt qua mảng examples và testcases, tạo mới các bản ghi tương ứng
@@ -55,7 +72,7 @@ const createProblem = async (req, res) => {
 
         const problem = await Problem.create({
             name,
-            slug,
+            slug: normalizedSlug,
             tags,
             language,
             description,
@@ -485,7 +502,7 @@ CODE:
 
         return review;
     } catch (error) {
-        console.log(error);
+        console.error('Error generating submission review:', error);
     }
 }
 
@@ -494,15 +511,33 @@ const updateProblem = async (req, res) => {
 
     try {
         const { name, slug, tags, description, input, output, limit, examples, testcases, score, level } = req.body;
+        const normalizedSlug = slug?.trim();
 
-        if (!name || !slug || !tags || !description || !input || !output || !examples || !testcases) {
-            return res.status(400).json({ message: 'Please fill in all fields' });
+        if (!name || !normalizedSlug || !tags || !description || !input || !output || !examples || !testcases) {
+            await transaction.rollback();
+            return res.status(400).json({ message: 'Vui lòng nhập đầy đủ các trường bắt buộc.' });
         }
 
-        const problem = await Problem.findByPk(req.params.id);
+        const problem = await Problem.findByPk(req.params.id, { transaction });
 
         if (!problem) {
+            await transaction.rollback();
             return res.status(404).json({ error: 'Problem not found' });
+        }
+
+        // Slug must remain globally unique, including soft-deleted problems.
+        const existingProblem = await Problem.findOne({
+            where: { slug: normalizedSlug },
+            paranoid: false,
+            transaction
+        });
+
+        if (existingProblem && existingProblem.id !== problem.id) {
+            await transaction.rollback();
+            return res.status(409).json({
+                code: 'DUPLICATE_SLUG',
+                message: 'Mã bài tập đã tồn tại.'
+            });
         }
 
         // Duyệt qua mảng examples và testcases
@@ -545,7 +580,7 @@ const updateProblem = async (req, res) => {
 
         await problem.update({
             name,
-            slug,
+            slug: normalizedSlug,
             tags,
             description,
             input,
@@ -567,17 +602,37 @@ const updateProblem = async (req, res) => {
 };
 
 const deleteProblemByID = async (req, res) => {
-    try {
-        const problem = await Problem.findByPk(req.params.id);
+    const transaction = await sequelize.transaction();
 
-        if (problem) {
-            await problem.destroy();
-            res.status(200).json({ message: 'deleted deleted' });
-        } else {
-            res.status(404).json({ message: 'deleted not found' });
+    try {
+        const problem = await Problem.findByPk(req.params.id, { transaction });
+
+        if (!problem) {
+            await transaction.rollback();
+            return res.status(404).json({ message: 'Problem not found' });
         }
 
+        // Remove the problem reference from every Unit that contains it
+        const units = await Unit.findAll({ transaction });
+
+        for (const unit of units) {
+            const children = unit.children || [];
+
+            if (Array.isArray(children) && children.includes(problem.id)) {
+                unit.children = children.filter(id => id !== problem.id);
+                await unit.save({ transaction });
+            }
+        }
+
+        // Soft-delete the problem
+        await problem.destroy({ transaction });
+
+        await transaction.commit();
+
+        res.status(200).json({ message: 'Problem deleted successfully' });
+
     } catch (error) {
+        await transaction.rollback();
         res.status(500).json({ error: error.message });
     }
 }
