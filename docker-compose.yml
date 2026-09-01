@@ -14,6 +14,8 @@ services:
       context: ./src/HiCommit-Server
     env_file:
       - ./src/HiCommit-Server/.env
+    ports:
+      - "5174:5174"
     environment:
       DB_HOST: db
       CLIENT_URL: ${CLIENT_URL}
