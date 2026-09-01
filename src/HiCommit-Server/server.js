@@ -38,6 +38,8 @@ const allowedDomains = [
     'http://192.168.0.103:5173',
     'http://localhost:5173',
     'https://localhost:5173',
+    'http://localhost:8081',
+    'https://localhost:8081',
     process.env.CLIENT_URL,
 ].filter(Boolean);
 

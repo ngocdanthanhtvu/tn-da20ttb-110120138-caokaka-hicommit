@@ -37,6 +37,7 @@ const signInWithGithub = async () => {
 
     } catch (error) {
         console.error('SignIn Error', error);
+        throw error;
     }
 }
 
