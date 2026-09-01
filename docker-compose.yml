@@ -1,0 +1,40 @@
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: hicommit
+    ports:
+      - "3306:3306"
+    volumes:
+      - hicommit_db_data:/var/lib/mysql
+
+  server:
+    build:
+      context: ./src/HiCommit-Server
+    env_file:
+      - ./src/HiCommit-Server/.env
+    environment:
+      DB_HOST: db
+      CLIENT_URL: ${CLIENT_URL}
+    depends_on:
+      - db
+
+  client:
+    build:
+      context: ./src/HiCommit-Client
+      secrets:
+        - client_env
+    ports:
+      - "8081:80"
+    depends_on:
+      - server
+
+secrets:
+  client_env:
+    file: ./src/HiCommit-Client/.env
+
+volumes:
+  hicommit_db_data:
+    external: true
+    name: hicommit_db_data
