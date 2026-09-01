@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const bodyParser = require('body-parser');
@@ -36,12 +38,22 @@ const allowedDomains = [
     'http://192.168.0.103:5173',
     'http://localhost:5173',
     'https://localhost:5173',
-    'https://bug-free-space-dollop-4p5v795xv6j2jj9g-5173.app.github.dev',
-];
+    process.env.CLIENT_URL,
+].filter(Boolean);
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+
+  if (allowedDomains.includes(origin)) {
+    return true;
+  }
+
+  return /^https:\/\/[a-zA-Z0-9-]+-5173\.app\.github\.dev$/.test(origin);
+};
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (allowedDomains.indexOf(origin) !== -1 || !origin) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -64,7 +76,7 @@ app.use('/submissions', submissionRoutes);
 app.use('/contests', contestRoutes);
 app.use('/gemini', geminiRoutes);
 
-const port = 5174;
+const port = process.env.PORT || 5174;
 sequelize.sync({ alter: false })
   .then(() => {
     server.listen(port, () => {
