@@ -5,6 +5,7 @@ const Problem = require('../models/problem');
 const Example = require('../models/example');
 const Testcase = require('../models/testcase');
 const Submission = require('../models/submission');
+const SubmissionCompileResult = require('../models/submissionCompileResult');
 const Contest = require('../models/contest');
 const { fn, col, where, literal, Op } = require('sequelize');
 const sequelize = require('../configs/database');
@@ -363,7 +364,23 @@ const getTestcasesBySlug = async (req, res) => {
 const writeResultFromGitHub = async (req, res) => {
 
     try {
-        const { problem, actor, job_name, run_id, sha, status, result, pass_count, total_count, duration, code } = req.body;
+        const {
+            problem,
+            actor,
+            job_name,
+            run_id,
+            sha,
+            status,
+            result,
+            pass_count,
+            total_count,
+            duration,
+            code,
+            compile_exit_code,
+            compile_duration_ms,
+            compile_stdout,
+            compile_stderr
+        } = req.body;
 
         if (!problem || !actor || !run_id || !sha || !status || !code) {
             return res.status(400).json({ error: 'Missing required fields' });
@@ -409,6 +426,20 @@ const writeResultFromGitHub = async (req, res) => {
 
             if (!submission) {
                 return res.status(404).json({ error: 'Submission not found' });
+            }
+
+            // Lưu kết quả biên dịch nếu workflow gửi compile telemetry
+            if (compile_exit_code !== undefined && compile_exit_code !== null) {
+                await SubmissionCompileResult.upsert({
+                    submission_id: submission.id,
+                    status: Number(compile_exit_code) === 0 ? 'SUCCESS' : 'FAILED',
+                    exit_code: Number(compile_exit_code),
+                    duration_ms: compile_duration_ms != null
+                        ? Number(compile_duration_ms)
+                        : null,
+                    stdout: compile_stdout ?? '',
+                    stderr: compile_stderr ?? ''
+                });
             }
 
             // Cập nhật thông tin kết quả
