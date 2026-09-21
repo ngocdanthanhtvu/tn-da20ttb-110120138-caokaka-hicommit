@@ -6,6 +6,7 @@ const Example = require('../models/example');
 const Testcase = require('../models/testcase');
 const Submission = require('../models/submission');
 const SubmissionCompileResult = require('../models/submissionCompileResult');
+const SubmissionErrorDetail = require('../models/submissionErrorDetail');
 const Contest = require('../models/contest');
 const { fn, col, where, literal, Op } = require('sequelize');
 const sequelize = require('../configs/database');
@@ -379,7 +380,9 @@ const writeResultFromGitHub = async (req, res) => {
             compile_exit_code,
             compile_duration_ms,
             compile_stdout,
-            compile_stderr
+            compile_stderr,
+            error_type,
+            error_stage
         } = req.body;
 
         if (!problem || !actor || !run_id || !sha || !status || !code) {
@@ -439,6 +442,15 @@ const writeResultFromGitHub = async (req, res) => {
                         : null,
                     stdout: compile_stdout ?? '',
                     stderr: compile_stderr ?? ''
+                });
+            }
+
+            // Lưu chi tiết lỗi ở mức submission nếu workflow gửi thông tin lỗi
+            if (error_type) {
+                await SubmissionErrorDetail.upsert({
+                    submission_id: submission.id,
+                    error_type,
+                    error_stage: error_stage ?? null
                 });
             }
 
