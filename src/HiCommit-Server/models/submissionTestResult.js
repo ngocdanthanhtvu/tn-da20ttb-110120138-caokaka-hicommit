@@ -16,6 +16,10 @@ const SubmissionTestResult = sequelize.define('SubmissionTestResult', {
         type: DataTypes.STRING(64),
         allowNull: false
     },
+    testcase_version: {
+        type: DataTypes.CHAR(64),
+        allowNull: true
+    },
     test_order: {
         type: DataTypes.INTEGER,
         allowNull: false

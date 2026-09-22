@@ -36,6 +36,10 @@ const SubmissionProvenance = sequelize.define('SubmissionProvenance', {
     runner_version: {
         type: DataTypes.STRING(32),
         allowNull: true
+    },
+    testset_version: {
+        type: DataTypes.CHAR(64),
+        allowNull: true
     }
 }, {
     tableName: 'submission_provenance',

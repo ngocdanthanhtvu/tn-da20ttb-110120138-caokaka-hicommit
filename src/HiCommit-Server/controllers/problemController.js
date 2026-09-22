@@ -351,15 +351,52 @@ const getTestcasesBySlug = async (req, res) => {
             return res.status(404).json({ error: 'Problem not found' });
         }
 
-        // Lấy ra testcases liên quan với các trường id, input, output
+        // Lấy các testcase liên quan
         const testcases = await Testcase.findAll({
             where: {
                 id: problem.testcases
             },
-            attributes: ['id', 'input', 'output'] // Chỉ lấy ra các trường id, input, output
+            attributes: ['id', 'input', 'output']
         });
 
-        res.status(200).json(testcases);
+        // Bảo toàn đúng thứ tự testcase đã lưu trong Problem
+        const testcaseMap = new Map(
+            testcases.map(testcase => [testcase.id, testcase])
+        );
+
+        const orderedTestcases = problem.testcases
+            .map(id => testcaseMap.get(id))
+            .filter(Boolean)
+            .map(testcase => {
+                const testcaseData = testcase.toJSON();
+
+                const testcaseVersion = crypto
+                    .createHash('sha256')
+                    .update(JSON.stringify([
+                        testcaseData.input,
+                        testcaseData.output
+                    ]))
+                    .digest('hex');
+
+                return {
+                    ...testcaseData,
+                    testcase_version: testcaseVersion
+                };
+            });
+
+        const testsetVersion = crypto
+            .createHash('sha256')
+            .update(JSON.stringify(
+                orderedTestcases.map(testcase => testcase.testcase_version)
+            ))
+            .digest('hex');
+
+        const versionedTestcases = orderedTestcases.map(testcase => ({
+            ...testcase,
+            testset_version: testsetVersion
+        }));
+
+        res.status(200).json(versionedTestcases);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -379,6 +416,7 @@ const writeResultFromGitHub = async (req, res) => {
             execution_environment,
             architecture,
             runner_version,
+            testset_version,
             sha,
             status,
             result,
@@ -468,7 +506,8 @@ const writeResultFromGitHub = async (req, res) => {
                 workflow_name: workflow_name ?? null,
                 execution_environment: execution_environment ?? null,
                 architecture: architecture ?? null,
-                runner_version: runner_version ?? null
+                runner_version: runner_version ?? null,
+                testset_version: testset_version ?? null
             });
 
             io.emit('new_submission');
@@ -496,7 +535,8 @@ const writeResultFromGitHub = async (req, res) => {
                 workflow_name: workflow_name ?? null,
                 execution_environment: execution_environment ?? null,
                 architecture: architecture ?? null,
-                runner_version: runner_version ?? null
+                runner_version: runner_version ?? null,
+                testset_version: testset_version ?? null
             });
 
             // Lưu kết quả biên dịch nếu workflow gửi compile telemetry
@@ -533,6 +573,7 @@ const writeResultFromGitHub = async (req, res) => {
                     await SubmissionTestResult.upsert({
                         submission_id: submission.id,
                         testcase_id: testcase.id,
+                        testcase_version: testcase.testcase_version ?? null,
                         test_order: index + 1,
                         input: testcase.input ?? null,
                         expected_output: testcase.expected_output ?? null,
