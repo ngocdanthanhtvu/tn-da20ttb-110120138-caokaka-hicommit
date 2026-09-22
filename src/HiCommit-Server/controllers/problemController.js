@@ -9,10 +9,12 @@ const SubmissionCompileResult = require('../models/submissionCompileResult');
 const SubmissionErrorDetail = require('../models/submissionErrorDetail');
 const SubmissionTestResult = require('../models/submissionTestResult');
 const SubmissionProvenance = require('../models/submissionProvenance');
+const SubmissionSource = require('../models/submissionSource');
 const Contest = require('../models/contest');
 const { fn, col, where, literal, Op } = require('sequelize');
 const sequelize = require('../configs/database');
 const axios = require('axios');
+const crypto = require('crypto');
 const { getIO } = require('../socket');
 const { geminiChat } = require('../controllers/geminiController');
 
@@ -430,6 +432,31 @@ const writeResultFromGitHub = async (req, res) => {
                 // Chỉ gửi Gemini ở lần submit đầu tiên, không gửi lại khi rerun CI
                 getGeminiSuggestion(code, submission.id);
             }
+
+            // Lưu snapshot mã nguồn phục vụ phân tích và tái lập dữ liệu
+            const sourceBuffer = Buffer.from(code, 'base64');
+            const sourceText = sourceBuffer.toString('utf8');
+            const sourceLines = sourceText.length === 0
+                ? []
+                : sourceText.split(/\r\n|\r|\n/);
+
+            if (sourceLines.length > 0 && sourceLines[sourceLines.length - 1] === '') {
+                sourceLines.pop();
+            }
+
+            await SubmissionSource.upsert({
+                submission_id: submission.id,
+                path: 'main.c',
+                language: 'c',
+                encoding: 'utf-8',
+                content_base64: code,
+                sha256: crypto
+                    .createHash('sha256')
+                    .update(sourceBuffer)
+                    .digest('hex'),
+                size_bytes: sourceBuffer.length,
+                line_count: sourceLines.length
+            });
 
             await SubmissionProvenance.upsert({
                 submission_id: submission.id,
