@@ -374,6 +374,9 @@ const writeResultFromGitHub = async (req, res) => {
             run_id,
             run_attempt,
             workflow_name,
+            execution_environment,
+            architecture,
+            runner_version,
             sha,
             status,
             result,
@@ -435,7 +438,10 @@ const writeResultFromGitHub = async (req, res) => {
                     ? Number(run_attempt)
                     : 1,
                 commit_sha: sha,
-                workflow_name: workflow_name ?? null
+                workflow_name: workflow_name ?? null,
+                execution_environment: execution_environment ?? null,
+                architecture: architecture ?? null,
+                runner_version: runner_version ?? null
             });
 
             io.emit('new_submission');
@@ -460,7 +466,10 @@ const writeResultFromGitHub = async (req, res) => {
                     ? Number(run_attempt)
                     : 1,
                 commit_sha: sha,
-                workflow_name: workflow_name ?? null
+                workflow_name: workflow_name ?? null,
+                execution_environment: execution_environment ?? null,
+                architecture: architecture ?? null,
+                runner_version: runner_version ?? null
             });
 
             // Lưu kết quả biên dịch nếu workflow gửi compile telemetry

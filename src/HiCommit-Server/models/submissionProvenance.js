@@ -24,6 +24,18 @@ const SubmissionProvenance = sequelize.define('SubmissionProvenance', {
     workflow_name: {
         type: DataTypes.STRING(255),
         allowNull: true
+    },
+    execution_environment: {
+        type: DataTypes.STRING(64),
+        allowNull: true
+    },
+    architecture: {
+        type: DataTypes.STRING(32),
+        allowNull: true
+    },
+    runner_version: {
+        type: DataTypes.STRING(32),
+        allowNull: true
     }
 }, {
     tableName: 'submission_provenance',
