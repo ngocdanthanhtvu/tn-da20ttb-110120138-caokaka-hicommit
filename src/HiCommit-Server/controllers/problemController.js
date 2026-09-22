@@ -383,6 +383,9 @@ const writeResultFromGitHub = async (req, res) => {
             code,
             compile_exit_code,
             compile_duration_ms,
+            compiler,
+            compiler_version,
+            compile_command,
             compile_stdout,
             compile_stderr,
             error_type,
@@ -469,6 +472,9 @@ const writeResultFromGitHub = async (req, res) => {
                     duration_ms: compile_duration_ms != null
                         ? Number(compile_duration_ms)
                         : null,
+                    compiler: compiler ?? null,
+                    compiler_version: compiler_version ?? null,
+                    command: compile_command ?? null,
                     stdout: compile_stdout ?? '',
                     stderr: compile_stderr ?? ''
                 });
