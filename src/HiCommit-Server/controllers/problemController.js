@@ -439,6 +439,37 @@ const writeResultFromGitHub = async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
+        // Tính phiên bản nội dung của đặc tả bài toán
+        const problemRecord = await Problem.findOne({
+            where: { slug: problem },
+            attributes: [
+                'name',
+                'language',
+                'description',
+                'input',
+                'output',
+                'limit'
+            ]
+        });
+
+        if (!problemRecord) {
+            return res.status(404).json({ error: 'Problem not found' });
+        }
+
+        const problemData = problemRecord.toJSON();
+
+        const problemVersion = crypto
+            .createHash('sha256')
+            .update(JSON.stringify([
+                problemData.name,
+                problemData.language,
+                problemData.description,
+                problemData.input,
+                problemData.output,
+                problemData.limit ?? null
+            ]))
+            .digest('hex');
+
         if (status === 'pending') {
             // Xử lý khi status là pending
 
@@ -507,6 +538,7 @@ const writeResultFromGitHub = async (req, res) => {
                 execution_environment: execution_environment ?? null,
                 architecture: architecture ?? null,
                 runner_version: runner_version ?? null,
+                problem_version: problemVersion,
                 testset_version: testset_version ?? null
             });
 
@@ -536,6 +568,7 @@ const writeResultFromGitHub = async (req, res) => {
                 execution_environment: execution_environment ?? null,
                 architecture: architecture ?? null,
                 runner_version: runner_version ?? null,
+                problem_version: problemVersion,
                 testset_version: testset_version ?? null
             });
 
