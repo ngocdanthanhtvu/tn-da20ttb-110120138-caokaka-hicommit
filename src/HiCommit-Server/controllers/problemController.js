@@ -589,12 +589,18 @@ const writeResultFromGitHub = async (req, res) => {
                 });
             }
 
-            // Lưu chi tiết lỗi ở mức submission nếu workflow gửi thông tin lỗi
+            // Đồng bộ chi tiết lỗi theo kết quả của lần thực thi kỹ thuật hiện tại
             if (error_type) {
                 await SubmissionErrorDetail.upsert({
                     submission_id: submission.id,
                     error_type,
                     error_stage: error_stage ?? null
+                });
+            } else {
+                await SubmissionErrorDetail.destroy({
+                    where: {
+                        submission_id: submission.id
+                    }
                 });
             }
 
