@@ -416,6 +416,7 @@ const writeResultFromGitHub = async (req, res) => {
             execution_environment,
             architecture,
             runner_version,
+            schema_version,
             testset_version,
             sha,
             status,
@@ -529,6 +530,7 @@ const writeResultFromGitHub = async (req, res) => {
 
             await SubmissionProvenance.upsert({
                 submission_id: submission.id,
+                schema_version: schema_version ?? '1.0',
                 github_run_id: String(run_id),
                 github_run_attempt: run_attempt != null
                     ? Number(run_attempt)
@@ -559,6 +561,7 @@ const writeResultFromGitHub = async (req, res) => {
             // Cập nhật provenance cho lần thực thi kỹ thuật hiện tại
             await SubmissionProvenance.upsert({
                 submission_id: submission.id,
+                schema_version: schema_version ?? '1.0',
                 github_run_id: String(run_id),
                 github_run_attempt: run_attempt != null
                     ? Number(run_attempt)

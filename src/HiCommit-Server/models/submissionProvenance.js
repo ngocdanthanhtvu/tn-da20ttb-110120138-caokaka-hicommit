@@ -8,6 +8,11 @@ const SubmissionProvenance = sequelize.define('SubmissionProvenance', {
         allowNull: false,
         primaryKey: true
     },
+    schema_version: {
+        type: DataTypes.STRING(16),
+        allowNull: false,
+        defaultValue: '1.0'
+    },
     github_run_id: {
         type: DataTypes.STRING(32),
         allowNull: false
