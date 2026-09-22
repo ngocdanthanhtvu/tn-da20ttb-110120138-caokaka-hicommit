@@ -7,6 +7,7 @@ const Testcase = require('../models/testcase');
 const Submission = require('../models/submission');
 const SubmissionCompileResult = require('../models/submissionCompileResult');
 const SubmissionErrorDetail = require('../models/submissionErrorDetail');
+const SubmissionTestResult = require('../models/submissionTestResult');
 const Contest = require('../models/contest');
 const { fn, col, where, literal, Op } = require('sequelize');
 const sequelize = require('../configs/database');
@@ -452,6 +453,28 @@ const writeResultFromGitHub = async (req, res) => {
                     error_type,
                     error_stage: error_stage ?? null
                 });
+            }
+
+            // Lưu telemetry chi tiết của từng testcase
+            if (Array.isArray(result)) {
+                for (let index = 0; index < result.length; index++) {
+                    const testcase = result[index];
+
+                    await SubmissionTestResult.upsert({
+                        submission_id: submission.id,
+                        testcase_id: testcase.id,
+                        test_order: index + 1,
+                        input: testcase.input ?? null,
+                        expected_output: testcase.expected_output ?? null,
+                        actual_output: testcase.actual_output ?? null,
+                        status: String(testcase.status || '').toUpperCase(),
+                        exit_code: testcase.exit_code ?? null,
+                        signal_number: testcase.signal ?? null,
+                        stderr: testcase.stderr ?? '',
+                        duration_ms: testcase.duration_ms ?? null,
+                        timeout_ms: testcase.timeout_ms ?? null
+                    });
+                }
             }
 
             // Cập nhật thông tin kết quả
