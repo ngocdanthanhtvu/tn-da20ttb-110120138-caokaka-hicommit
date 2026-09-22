@@ -8,6 +8,7 @@ const Submission = require('../models/submission');
 const SubmissionCompileResult = require('../models/submissionCompileResult');
 const SubmissionErrorDetail = require('../models/submissionErrorDetail');
 const SubmissionTestResult = require('../models/submissionTestResult');
+const SubmissionProvenance = require('../models/submissionProvenance');
 const Contest = require('../models/contest');
 const { fn, col, where, literal, Op } = require('sequelize');
 const sequelize = require('../configs/database');
@@ -371,6 +372,8 @@ const writeResultFromGitHub = async (req, res) => {
             actor,
             job_name,
             run_id,
+            run_attempt,
+            workflow_name,
             sha,
             status,
             result,
@@ -404,21 +407,35 @@ const writeResultFromGitHub = async (req, res) => {
                 return res.status(200).send('Config commit received');
             }
 
-            const submission = await Submission.create({
-                id: run_id,
-                problem_slug: problem,
-                username: actor,
-                sha,
-                run_id,
-                code,
-                status: status.toUpperCase(),
-                commit: commitMessage
+            let submission = await Submission.findByPk(run_id);
+
+            if (!submission) {
+                submission = await Submission.create({
+                    id: run_id,
+                    problem_slug: problem,
+                    username: actor,
+                    sha,
+                    run_id,
+                    code,
+                    status: status.toUpperCase(),
+                    commit: commitMessage
+                });
+
+                // Chỉ gửi Gemini ở lần submit đầu tiên, không gửi lại khi rerun CI
+                getGeminiSuggestion(code, submission.id);
+            }
+
+            await SubmissionProvenance.upsert({
+                submission_id: submission.id,
+                github_run_id: String(run_id),
+                github_run_attempt: run_attempt != null
+                    ? Number(run_attempt)
+                    : 1,
+                commit_sha: sha,
+                workflow_name: workflow_name ?? null
             });
 
             io.emit('new_submission');
-
-            // Gửi code và prompt đến Gemini
-            getGeminiSuggestion(code, submission.id);
 
             res.status(200).send('Result received');
 
@@ -431,6 +448,17 @@ const writeResultFromGitHub = async (req, res) => {
             if (!submission) {
                 return res.status(404).json({ error: 'Submission not found' });
             }
+
+            // Cập nhật provenance cho lần thực thi kỹ thuật hiện tại
+            await SubmissionProvenance.upsert({
+                submission_id: submission.id,
+                github_run_id: String(run_id),
+                github_run_attempt: run_attempt != null
+                    ? Number(run_attempt)
+                    : 1,
+                commit_sha: sha,
+                workflow_name: workflow_name ?? null
+            });
 
             // Lưu kết quả biên dịch nếu workflow gửi compile telemetry
             if (compile_exit_code !== undefined && compile_exit_code !== null) {
