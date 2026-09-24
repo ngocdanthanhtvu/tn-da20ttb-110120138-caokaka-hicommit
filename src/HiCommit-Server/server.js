@@ -64,6 +64,15 @@ app.use(cors({
   credentials: true,
 }));
 
+app.get('/health', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.status(200).json({ status: 'ok' });
+  } catch (error) {
+    res.status(503).json({ status: 'unhealthy' });
+  }
+});
+
 // [ADMIN]
 app.use('/admin', adminRoutes);
 
