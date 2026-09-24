@@ -2,7 +2,7 @@ const GITHUB_OIDC_ISSUER = 'https://token.actions.githubusercontent.com';
 const GITHUB_OIDC_AUDIENCE = 'hicommit-backend';
 
 const TRUSTED_WORKFLOW_REF =
-    'ngocdanthanhtvu/hicommit-runner/.github/workflows/c-runner.yml@09905f928b847d5e728cede9534bd335cf86c887';
+    'ngocdanthanhtvu/hicommit-runner/.github/workflows/c-runner.yml@35880c4dd87f02f5b6ca1aef8ee2560094c9dd47';
 
 let josePromise;
 let remoteJwks;
