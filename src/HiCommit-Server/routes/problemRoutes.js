@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
+const githubOidcMiddleware = require('../middleware/githubOidcMiddleware');
 
 const {
     createProblem,
@@ -30,7 +31,11 @@ router.post('/create', authMiddleware.authenticate, authMiddleware.isAdminOrTeac
 router.put('/:id', authMiddleware.authenticate, authMiddleware.isAdminOrTeacher, updateProblem);
 
 // For SUBMISSIONS
-router.post('/:slug/submission/result', writeResultFromGitHub);
+router.post(
+    '/:slug/submission/result',
+    githubOidcMiddleware.verifyGitHubOidc,
+    writeResultFromGitHub
+);
 
 router.delete('/:id', authMiddleware.authenticate, authMiddleware.isAdminOrTeacher, deleteProblemByID);
 
