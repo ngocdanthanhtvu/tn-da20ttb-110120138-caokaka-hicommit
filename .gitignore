@@ -2,3 +2,5 @@
 .env.compose
 
 hicommit_backup_*.sql
+
+hicommit_backup_*.sql.sha256
