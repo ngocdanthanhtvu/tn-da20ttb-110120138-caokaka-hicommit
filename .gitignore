@@ -1,2 +1,4 @@
 
 .env.compose
+
+hicommit_backup_*.sql
