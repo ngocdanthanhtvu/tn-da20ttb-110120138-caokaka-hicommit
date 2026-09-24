@@ -39,7 +39,9 @@ app.use(cors({
     if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      const error = new Error('Not allowed by CORS');
+      error.status = 403;
+      callback(error);
     }
   },
   credentials: true,
@@ -67,6 +69,14 @@ app.use('/discussions', discussionRoutes);
 app.use('/submissions', submissionRoutes);
 app.use('/contests', contestRoutes);
 app.use('/gemini', geminiRoutes);
+
+app.use((err, req, res, next) => {
+  if (err && err.status === 403 && err.message === 'Not allowed by CORS') {
+    return res.status(403).json({ error: 'Not allowed by CORS' });
+  }
+
+  next(err);
+});
 
 const port = process.env.PORT || 5174;
 sequelize.authenticate()
