@@ -79,7 +79,7 @@ app.use('/contests', contestRoutes);
 app.use('/gemini', geminiRoutes);
 
 const port = process.env.PORT || 5174;
-sequelize.sync({ alter: false })
+sequelize.authenticate()
   .then(() => {
     server.listen(port, () => {
       console.log(`Server is running on http://localhost:${port}`);

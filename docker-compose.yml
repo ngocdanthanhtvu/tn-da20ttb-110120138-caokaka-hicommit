@@ -8,6 +8,7 @@ services:
       - "3306:3306"
     volumes:
       - hicommit_db_data:/var/lib/mysql
+      - ./docker/mariadb/hicommit.cnf:/etc/mysql/conf.d/hicommit.cnf:ro
 
   server:
     build:

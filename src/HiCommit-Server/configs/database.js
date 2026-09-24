@@ -12,8 +12,4 @@ const sequelize = new Sequelize(
   }
 );
 
-sequelize.query("SET GLOBAL max_allowed_packet = 67108864")
-  .then(() => console.log('Updated max_allowed_packet'))
-  .catch(err => console.error('Error updating max_allowed_packet:', err));
-
 module.exports = sequelize;
