@@ -27,7 +27,7 @@ services:
       - "5174:5174"
     environment:
       DB_HOST: db
-      CLIENT_URL: ${CLIENT_URL}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
     depends_on:
       db:
         condition: service_healthy
