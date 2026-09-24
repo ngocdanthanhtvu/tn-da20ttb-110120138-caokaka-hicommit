@@ -2,7 +2,7 @@ const GITHUB_OIDC_ISSUER = 'https://token.actions.githubusercontent.com';
 const GITHUB_OIDC_AUDIENCE = 'hicommit-backend';
 
 const TRUSTED_WORKFLOW_REF =
-    'ngocdanthanhtvu/hicommit-runner/.github/workflows/c-runner.yml@b1aa0f53904808b88555f8782dc01b4489b9bd75';
+    'ngocdanthanhtvu/hicommit-runner/.github/workflows/c-runner.yml@15729cc8418e268324feda69f27327eaf0975bf9';
 
 let josePromise;
 let remoteJwks;
@@ -75,6 +75,49 @@ exports.verifyGitHubOidc = async (req, res, next) => {
         if (!claimsMatchCallback(payload, req.body)) {
             return res.status(403).json({
                 error: 'GitHub OIDC claims do not match callback payload',
+            });
+        }
+
+        req.githubOidc = payload;
+
+        next();
+    } catch (error) {
+        console.error('Error verifying GitHub OIDC token:', error.message);
+        return res.status(401).json({ error: 'Invalid GitHub OIDC token' });
+    }
+};
+
+exports.verifyGitHubOidcForTestcases = async (req, res, next) => {
+    try {
+        const authorization = req.get('authorization');
+
+        if (!authorization || !authorization.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Missing GitHub OIDC token' });
+        }
+
+        const token = authorization.slice('Bearer '.length).trim();
+
+        const { jwtVerify } = await getJose();
+        const jwks = await getRemoteJwks();
+
+        const { payload } = await jwtVerify(token, jwks, {
+            issuer: GITHUB_OIDC_ISSUER,
+            audience: GITHUB_OIDC_AUDIENCE,
+        });
+
+        if (payload.job_workflow_ref !== TRUSTED_WORKFLOW_REF) {
+            return res.status(403).json({ error: 'Untrusted GitHub workflow' });
+        }
+
+        const expectedRef = `refs/heads/${req.params.slug}`;
+
+        if (
+            typeof payload.repository !== 'string' ||
+            !payload.repository.endsWith('/hicommit-problems') ||
+            payload.ref !== expectedRef
+        ) {
+            return res.status(403).json({
+                error: 'GitHub OIDC claims do not match testcase request',
             });
         }
 
