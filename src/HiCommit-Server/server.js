@@ -5,6 +5,7 @@ const http = require('http');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
+const { isAllowedOrigin } = require('./configs/cors');
 const { initializeSocket } = require('./socket');
 
 const app = express();
@@ -32,26 +33,6 @@ app.use(bodyParser.json({ limit: '20mb' }));
 app.use(bodyParser.urlencoded({ limit: '20mb', extended: true }));
 
 app.use(cookieParser());
-
-// Danh sách các domain được phép
-const allowedDomains = [
-    'http://192.168.0.103:5173',
-    'http://localhost:5173',
-    'https://localhost:5173',
-    'http://localhost:8081',
-    'https://localhost:8081',
-    process.env.CLIENT_URL,
-].filter(Boolean);
-
-const isAllowedOrigin = (origin) => {
-  if (!origin) return true;
-
-  if (allowedDomains.includes(origin)) {
-    return true;
-  }
-
-  return /^https:\/\/[a-zA-Z0-9-]+-5173\.app\.github\.dev$/.test(origin);
-};
 
 app.use(cors({
   origin: function (origin, callback) {
