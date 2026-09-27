@@ -128,7 +128,7 @@ const createGitHubAPI = (accessToken: any) => {
     // Note: Hàm tạo một repo từ repo template
     const createRepoFromTemplate = async () => {
         try {
-            const response = await githubAPI.post(`/repos/hicommit/templates/generate`, {
+            const response = await githubAPI.post(`/repos/ngocdanthanhtvu/hicommit-templates/generate`, {
                 name: "hicommit-problems",
                 include_all_branches: true,
             });
