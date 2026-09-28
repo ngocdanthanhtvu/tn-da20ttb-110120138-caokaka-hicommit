@@ -67,6 +67,8 @@ import { Switch } from "@/components/ui/switch"
 import { useLogin } from "@/service/LoginContext";
 
 const timeAgo = (isoDate: any) => {
+    if (!isoDate) return '';
+
     try {
         const date = parseISO(isoDate);
         return formatDistanceToNow(date, { addSuffix: true, locale: vi });
@@ -149,9 +151,9 @@ function Result() {
 
         if (submission?.review) {
             // Lọc ra các mã lỗi (syntax.category, evaluation.category, style_check.category)
-            const syntax = submission?.review?.syntax?.map((review: any) => review.category);
-            const evaluation = submission?.review?.evaluation?.map((review: any) => review.category);
-            const style_check = submission?.review?.style_check?.map((review: any) => review.category);
+            const syntax = submission?.review?.syntax?.map((review: any) => review.category) ?? [];
+            const evaluation = submission?.review?.evaluation?.map((review: any) => review.category) ?? [];
+            const style_check = submission?.review?.style_check?.map((review: any) => review.category) ?? [];
 
             const newErrorMap = new Set([
                 ...syntax,
