@@ -78,10 +78,48 @@ function SubmitProblem() {
     const handleGetProblem = async () => {
         try {
             const response = await getProblemByIDorSlug(problem_id as any);
+
             setProblem(response);
             handleGetMySubmited();
             setSelectedLanguage(response.language);
-            handleChangeLanguage(response.language);
+
+            // Nếu đang dùng lại mã nguồn từ một submission cũ thì giữ nguyên mã đó
+            if (old_code) {
+                setCode(old_code);
+                setCommitMessage("Re-submit code at " + new Date().toLocaleString() + " by HiCommit");
+                return;
+            }
+
+            const language = response.language.toLowerCase();
+            const fileName = language === "java"
+                ? "Main.java"
+                : `main.${language}`;
+
+            try {
+                // Nếu branch của bài đã tồn tại, lấy mã nguồn hiện tại của người học
+                await githubAPI.getRepoBranchInfo(
+                    loginContext?.user.username,
+                    targetRepo,
+                    problem_id
+                );
+
+                const existingCode = await githubAPI.getFileContent(
+                    loginContext?.user.username,
+                    targetRepo,
+                    problem_id,
+                    fileName
+                );
+
+                setCode(existingCode);
+            } catch (error) {
+                // Chưa có branch / chưa có mã nguồn → dùng starter code
+                setCode(
+                    initialCodeForLanguage[
+                        language as keyof typeof initialCodeForLanguage
+                    ]
+                );
+            }
+
             console.log(response);
         } catch (error) {
             console.error("Error during handleGetProblem:", error);
@@ -207,15 +245,6 @@ public class Main {
   }
 }`
   }
-
-    useEffect(() => {
-        if (old_code) {
-            setCode(old_code);
-            setCommitMessage("Re-submit code at " + new Date().toLocaleString() + " by HiCommit");
-        } else {
-            setCode(initialCodeForLanguage[selectedLanguage.toLowerCase() as keyof typeof initialCodeForLanguage]);
-        }
-    }, []);
 
     return (
         <div className="SubmitProblem p-6 px-8 pb-[90px] flex flex-col gap-8">
