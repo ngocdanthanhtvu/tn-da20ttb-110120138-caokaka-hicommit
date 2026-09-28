@@ -118,7 +118,9 @@ const createGitHubAPI = (accessToken: any) => {
             const response = await githubAPI.get(`/repos/${owner}/${repo}/contents/${path}`, {
                 params: { ref: branch }
             });
-            return Buffer.from(response.data.content, 'base64').toString('utf8'); // Giải mã nội dung base64
+            const binary = atob(response.data.content.replace(/\n/g, ''));
+            const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+            return new TextDecoder('utf-8').decode(bytes);
         } catch (error) {
             console.error('Error getting file content:', error);
             throw error;
