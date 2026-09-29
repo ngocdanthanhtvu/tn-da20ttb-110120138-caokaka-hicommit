@@ -66,10 +66,21 @@ async function main() {
             SELECT
                 s.id,
                 s.problem_slug,
+                CASE
+                    WHEN UPPER(s.problem_slug) REGEXP '^A[0-9][0-9]($|-|_)'
+                    THEN UPPER(SUBSTRING(s.problem_slug, 1, 3))
+                    ELSE NULL
+                END AS assignment_id,
                 s.username,
                 s.status,
                 s.pass_count,
                 s.total_count,
+                (
+                    SELECT p.score
+                    FROM problems p
+                    WHERE p.slug = s.problem_slug
+                    LIMIT 1
+                ) AS max_points,
                 s.duration,
                 s.createdAt,
                 s.updatedAt,
@@ -286,7 +297,8 @@ async function main() {
             telemetry_level: telemetryLevel,
             meta: {
                 student_id: submission.username,
-                assignment_id: submission.problem_slug,
+                assignment_id: submission.assignment_id,
+                problem_slug: submission.problem_slug,
                 submission_id: submission.id,
                 attempt_seq: Number(submission.attempt_seq),
                 timestamp: submission.createdAt,
@@ -335,7 +347,34 @@ async function main() {
                 status: submission.status,
                 pass_count: submission.pass_count,
                 total_count: submission.total_count,
-                duration: submission.duration
+                duration_seconds: submission.duration
+            },
+
+            score: {
+                max_points: submission.max_points,
+                earned_points:
+                    submission.max_points !== null &&
+                    submission.pass_count !== null &&
+                    submission.total_count > 0
+                        ? Number(
+                            (
+                                submission.max_points *
+                                submission.pass_count /
+                                submission.total_count
+                            ).toFixed(2)
+                        )
+                        : null,
+                score_ratio:
+                    submission.pass_count !== null &&
+                    submission.total_count > 0
+                        ? Number(
+                            (
+                                submission.pass_count /
+                                submission.total_count
+                            ).toFixed(4)
+                        )
+                        : null,
+                derived_from: "pass_count/total_count"
             },
 
             provenance
