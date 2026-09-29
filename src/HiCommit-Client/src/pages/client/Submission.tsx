@@ -66,6 +66,8 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useLogin } from "@/service/LoginContext";
 
+const ENABLE_AI_CODE_REVIEW = false;
+
 const timeAgo = (isoDate: any) => {
     if (!isoDate) return '';
 
@@ -617,7 +619,42 @@ function Result() {
                                 </div>
                             </div>
                         </BlurFade>
+
                         {
+                            submission?.status?.toUpperCase() === "COMPILE_ERROR" &&
+                            submission?.compile_result &&
+                            <BlurFade delay={0.35} yOffset={0} blur="2px">
+                                <div className="flex flex-col border rounded-lg overflow-hidden">
+                                    <div className="bg-zinc-100 dark:bg-zinc-900 p-3 px-5 border-b">
+                                        <p className="font-bold flex items-center gap-2">
+                                            <i className="fa-solid fa-triangle-exclamation text-zinc-500"></i>
+                                            Chi tiết lỗi biên dịch
+                                        </p>
+                                    </div>
+
+                                    <div className="p-4 px-5 flex flex-col gap-3">
+                                        <div className="text-sm flex flex-wrap gap-x-6 gap-y-1">
+                                            <span>
+                                                <strong>Trình biên dịch:</strong>{' '}
+                                                {submission?.compile_result?.compiler || 'Không xác định'}
+                                            </span>
+
+                                            <span>
+                                                <strong>Lệnh biên dịch:</strong>{' '}
+                                                <code>{submission?.compile_result?.command || 'Không xác định'}</code>
+                                            </span>
+                                        </div>
+
+                                        <pre className="text-sm whitespace-pre-wrap break-words overflow-x-auto bg-zinc-950 text-zinc-100 rounded-md p-4">
+                                            {submission?.compile_result?.stderr || 'Không có thông tin lỗi biên dịch.'}
+                                        </pre>
+                                    </div>
+                                </div>
+                            </BlurFade>
+                        }
+
+                        {
+                            ENABLE_AI_CODE_REVIEW &&
                             submission?.problem?.type !== "CONTEST" &&
                             <BlurFade delay={0.4} yOffset={0} blur="2px">
                                 <div className="flex flex-col border rounded-lg overflow-hidden">
@@ -715,6 +752,7 @@ function Result() {
                             </BlurFade>
                         }
                         {
+                            ENABLE_AI_CODE_REVIEW &&
                             submission?.problem?.type !== "CONTEST" && submission?.review?.suggestions?.length > 0 &&
                             <BlurFade delay={0.6} yOffset={0} blur="2px" className="flex flex-col gap-2">
                                 <h3 className="font-semibold">Các gợi ý chỉnh sửa:</h3>

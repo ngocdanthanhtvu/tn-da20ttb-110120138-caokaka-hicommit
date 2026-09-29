@@ -5,6 +5,7 @@ const User = require('../models/user');
 const Course = require('../models/course');
 const Unit = require('../models/unit');
 const Contest = require('../models/contest');
+const SubmissionCompileResult = require('../models/submissionCompileResult');
 const io = require('../server');
 
 // Submission(id, problem_slug, user_id, sha, commit, run_id, code, status, duration, result, style_check, pass_count, total_count)
@@ -124,9 +125,16 @@ const getSubmissionById = async (req, res) => {
             });
         }
 
+        const compileResult = await SubmissionCompileResult.findOne({
+            where: {
+                submission_id: submission.id
+            }
+        });
+
         submission.dataValues.problem = problemData;
         submission.dataValues.testcases = testcases;
         submission.dataValues.actor = user;
+        submission.dataValues.compile_result = compileResult;
 
         res.status(200).json(submission);
     } catch (error) {

@@ -499,8 +499,11 @@ const writeResultFromGitHub = async (req, res) => {
                     commit: commitMessage
                 });
 
-                // Chỉ gửi Gemini ở lần submit đầu tiên, không gửi lại khi rerun CI
-                getGeminiSuggestion(code, submission.id);
+                // Chỉ gọi AI review khi được bật rõ ràng bằng feature flag.
+                // Giai đoạn baseline mặc định tắt để không can thiệp hành vi debugging.
+                if (process.env.ENABLE_AI_CODE_REVIEW === 'true') {
+                    getGeminiSuggestion(code, submission.id);
+                }
             }
 
             // Lưu snapshot mã nguồn phục vụ phân tích và tái lập dữ liệu
