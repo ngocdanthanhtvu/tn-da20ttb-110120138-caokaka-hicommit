@@ -4,3 +4,6 @@
 hicommit_backup_*.sql
 
 hicommit_backup_*.sql.sha256
+
+# Research exports
+research_exports/
