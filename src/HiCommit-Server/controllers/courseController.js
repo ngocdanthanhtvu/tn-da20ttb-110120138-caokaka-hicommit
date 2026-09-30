@@ -139,14 +139,18 @@ const getJoinedCourses = async (req, res) => {
 
         const userCourses = await UserCourse.findAll({
             where: {
-                email: req.user.email
+                email: req.user.email,
+                status: 'ACTIVE'
             },
-            attributes: ['course_id', 'status']
+            attributes: ['course_id']
         });
 
         let courses = await Course.findAll({
             where: {
                 id: userCourses.map(course => course.course_id)
+            },
+            attributes: {
+                exclude: ['join_key']
             }
         });
 
