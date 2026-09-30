@@ -262,6 +262,11 @@ const getCourseByIdOrSlug = async (req, res) => {
             // người có quyền truy cập nội dung được xem như đã tham gia
             course.dataValues.isJoined = canViewContent;
 
+            // Trạng thái membership thực tế để frontend phân biệt
+            // chưa tham gia / đang chờ duyệt / đã tham gia / bị chặn
+            course.dataValues.membershipStatus =
+                userCourse ? userCourse.status : null;
+
             if (canViewContent) {
                 // Endpoint phía client không trả email thành viên
                 const userCourses = await UserCourse.findAll({

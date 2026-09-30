@@ -109,8 +109,13 @@ function Course() {
                 joinToCourse(courseData.id as string, inputKey as string),
                 {
                     loading: 'Đang kiểm tra...',
-                    success: 'Tham gia khoá học thành công!',
-                    error: 'Mã tham gia không chính xác!'
+                    success: (data: any) =>
+                        data?.status === 'INACTIVE'
+                            ? 'Đã gửi yêu cầu tham gia, đang chờ duyệt.'
+                            : 'Tham gia khoá học thành công!',
+                    error: (error: any) =>
+                        error?.response?.data?.message ||
+                        'Không thể tham gia khoá học.'
                 },
                 {
                     style: {
@@ -121,7 +126,8 @@ function Course() {
                         fontFamily: 'Plus Jakarta Sans',
                     }
                 });
-                handleGetCourseData();
+
+            handleGetCourseData();
             setInputKey("");
             setTimeout(() => {
                 setLoading(false);
@@ -484,43 +490,56 @@ function Course() {
                             </h1>
                             <p className="text-[13px] w-full mt-3">
                                 <i className="fa-solid fa-circle-info mr-2 opacity-40 text-xs"></i>
-                                <span className="opacity-60">Bạn chưa tham gia khoá học này</span>
-                            </p>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button className="w-full">
-                                        {!courseData?.isPublic && <i className="fa-solid fa-lock mr-2 text-xs"></i>}
-                                        Tham gia ngay
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Xác nhận tham gia khoá học</DialogTitle>
-                                    </DialogHeader>
-                                    <DialogDescription className="-mt-0.5 leading-6">
-                                        Bạn có chắc chắn rằng bạn muốn tham gia khoá học này. {courseData?.join_key && 'Vui lòng nhập mã tham gia để tiếp tục.'}
-                                    </DialogDescription>
+                                <span className="opacity-60">
                                     {
-                                        !courseData?.isPublic &&
-                                        <Input
-                                            placeholder="Mã tham gia"
-                                            className="placeholder:italic"
-                                            value={inputKey}
-                                            onChange={(e) => setInputKey(e.target.value)}
-                                        />
+                                        courseData?.membershipStatus === "INACTIVE"
+                                            ? "Yêu cầu tham gia đang chờ duyệt"
+                                            : courseData?.membershipStatus === "BANNED"
+                                                ? "Bạn không có quyền tham gia khoá học này"
+                                                : "Bạn chưa tham gia khoá học này"
                                     }
-                                    <DialogFooter className="mt-4">
-                                        <DialogClose asChild>
-                                            <Button variant="ghost">
-                                                Đóng
-                                            </Button>
-                                        </DialogClose>
-                                        <DialogClose asChild>
-                                            <Button onClick={() => handleJoinCourse()}>Xác nhận</Button>
-                                        </DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
+                                </span>
+                            </p>
+                            {
+                                courseData?.membershipStatus !== "INACTIVE" &&
+                                courseData?.membershipStatus !== "BANNED" &&
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button className="w-full">
+                                            {!courseData?.isPublic && <i className="fa-solid fa-lock mr-2 text-xs"></i>}
+                                            Tham gia ngay
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Xác nhận tham gia khoá học</DialogTitle>
+                                        </DialogHeader>
+                                        <DialogDescription className="-mt-0.5 leading-6">
+                                            Bạn có chắc chắn rằng bạn muốn tham gia khoá học này.
+                                            {!courseData?.isPublic && ' Vui lòng nhập mã tham gia để tiếp tục.'}
+                                        </DialogDescription>
+                                        {
+                                            !courseData?.isPublic &&
+                                            <Input
+                                                placeholder="Mã tham gia"
+                                                className="placeholder:italic"
+                                                value={inputKey}
+                                                onChange={(e) => setInputKey(e.target.value)}
+                                            />
+                                        }
+                                        <DialogFooter className="mt-4">
+                                            <DialogClose asChild>
+                                                <Button variant="ghost">
+                                                    Đóng
+                                                </Button>
+                                            </DialogClose>
+                                            <DialogClose asChild>
+                                                <Button onClick={() => handleJoinCourse()}>Xác nhận</Button>
+                                            </DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            }
                         </BlurFade>
                 }
             </div>
