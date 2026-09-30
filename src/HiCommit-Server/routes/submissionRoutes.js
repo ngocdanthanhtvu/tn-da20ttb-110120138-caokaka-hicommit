@@ -14,8 +14,8 @@ const {
 router.get('/me', authMiddleware.authenticate, getMySubmissions);
 router.get('/me/submited', authMiddleware.authenticate, getMySubmissionsResult);
 router.get('/me/:problem_slug', authMiddleware.authenticate, getMySubmissionsByProblem);
-router.get('/problem/:problem_slug', getSubmissionsByProblem);
-router.get('/:id', getSubmissionById);
+router.get('/problem/:problem_slug', authMiddleware.authenticate, getSubmissionsByProblem);
+router.get('/:id', authMiddleware.authenticate, getSubmissionById);
 
 router.put('/:id/public', authMiddleware.authenticate, togglePublicCode);
 

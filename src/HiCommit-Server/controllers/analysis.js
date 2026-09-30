@@ -9,6 +9,35 @@ const Post = require('../models/post');
 const { fn, col, where, literal, Op } = require('sequelize');
 const sequelize = require('../configs/database');
 
+const getActiveCourseUsernames = async (courseId) => {
+    const memberships = await UserCourse.findAll({
+        where: {
+            course_id: courseId,
+            status: 'ACTIVE'
+        },
+        attributes: ['email']
+    });
+
+    const emails = [...new Set(
+        memberships.map(member => member.email).filter(Boolean)
+    )];
+
+    if (emails.length === 0) {
+        return [];
+    }
+
+    const users = await User.findAll({
+        where: {
+            email: {
+                [Op.in]: emails
+            }
+        },
+        attributes: ['username']
+    });
+
+    return users.map(user => user.username);
+};
+
 // User(id, username, uid, email, role, status, avatar_url, favourite_post, favourite_course, favourite_problem, join_at)
 // Problem(id, name, slug, tags, language, description, input, output, limit, examples, testcases, created_by, type, level, score, parent)
 // Submission(id, user_id, problem_id, code, status, score, pass_count, total_count, created_at)
@@ -263,12 +292,46 @@ const getRanking = async (req, res) => {
 // Lấy ra số lượt nộp bài theo 1 tháng
 const countSubmissions60daysAgo = async (req, res) => {
     try {
+        const problemSlug = req.params.id;
 
-        const problemId = req.params.id;
+        const problem = await Problem.findOne({
+            where: { slug: problemSlug },
+            attributes: ['id', 'slug', 'type', 'parent']
+        });
+
+        if (!problem) {
+            return res.status(404).json({ error: 'Problem not found' });
+        }
+
+        let canViewAll = req.user.role === 'ADMIN';
+
+        const submissionWhere = {
+            problem_slug: problemSlug
+        };
+
+        if (req.user.role === 'TEACHER' && problem.type === 'COURSE') {
+            const course = await Course.findByPk(problem.parent, {
+                attributes: ['id', 'created_by']
+            });
+
+            canViewAll = !!course && course.created_by === req.user.id;
+
+            if (canViewAll) {
+                const courseUsernames =
+                    await getActiveCourseUsernames(course.id);
+
+                submissionWhere.username = {
+                    [Op.in]: courseUsernames
+                };
+            }
+        }
+
+        if (!canViewAll) {
+            submissionWhere.username = req.user.username;
+        }
+
         const submissions = await Submission.findAll({
-            where: {
-                problem_slug: problemId
-            },
+            where: submissionWhere,
             attributes: ['createdAt', 'status', 'username'],
             order: [[sequelize.col('createdAt'), 'ASC']]
         });
@@ -281,8 +344,8 @@ const countSubmissions60daysAgo = async (req, res) => {
 
         for (let i = 0; i < 60; i++) {
             const date = new Date(daysAgo.getTime() + i * 24 * 60 * 60 * 1000);
-            // Lưu tháng `day tháng month`
             const dateString = `${date.getDate()} thg ${date.getMonth() + 1}`;
+
             const submissionsCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
                 return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString;
@@ -290,55 +353,85 @@ const countSubmissions60daysAgo = async (req, res) => {
 
             const mySubmissionsCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
-                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString && submission.username === req.user.username;
+                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString &&
+                    submission.username === req.user.username;
             }).length;
 
             const passedCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
-                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString && submission.status === 'PASSED';
+                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString &&
+                    submission.status === 'PASSED';
             }).length;
 
             const myPassedCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
-                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString && submission.status === 'PASSED' && submission.username === req.user.username;
+                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString &&
+                    submission.status === 'PASSED' &&
+                    submission.username === req.user.username;
             }).length;
 
             const failedCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
-                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString && submission.status === 'FAILED';
+                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString &&
+                    submission.status === 'FAILED';
             }).length;
 
             const myFailedCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
-                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString && submission.status === 'FAILED' && submission.username === req.user.username;
+                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString &&
+                    submission.status === 'FAILED' &&
+                    submission.username === req.user.username;
             }).length;
 
             const errorCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
-                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString && submission.status === 'ERROR';
+                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString &&
+                    submission.status === 'ERROR';
             }).length;
 
             const myErrorCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
-                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString && submission.status === 'ERROR' && submission.username === req.user.username;
+                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString &&
+                    submission.status === 'ERROR' &&
+                    submission.username === req.user.username;
             }).length;
 
             const compileErrorCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
-                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString && submission.status === 'COMPILE_ERROR';
+                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString &&
+                    submission.status === 'COMPILE_ERROR';
             }).length;
 
             const myCompileErrorCount = submissions.filter(submission => {
                 const submissionDate = new Date(submission.createdAt);
-                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString && submission.status === 'COMPILE_ERROR' && submission.username === req.user.username;
+                return `${submissionDate.getDate()} thg ${submissionDate.getMonth() + 1}` === dateString &&
+                    submission.status === 'COMPILE_ERROR' &&
+                    submission.username === req.user.username;
             }).length;
 
-            formattedSubmissions.push({ date: dateString, submissions: submissionsCount, PASSED: passedCount, FAILED: failedCount, ERROR: errorCount, COMPILE_ERROR: compileErrorCount });
-            formattedMySubmissions.push({ date: dateString, submissions: mySubmissionsCount, PASSED: myPassedCount, FAILED: myFailedCount, ERROR: myErrorCount, COMPILE_ERROR: myCompileErrorCount });
+            if (canViewAll) {
+                formattedSubmissions.push({
+                    date: dateString,
+                    submissions: submissionsCount,
+                    PASSED: passedCount,
+                    FAILED: failedCount,
+                    ERROR: errorCount,
+                    COMPILE_ERROR: compileErrorCount
+                });
+            }
+
+            formattedMySubmissions.push({
+                date: dateString,
+                submissions: mySubmissionsCount,
+                PASSED: myPassedCount,
+                FAILED: myFailedCount,
+                ERROR: myErrorCount,
+                COMPILE_ERROR: myCompileErrorCount
+            });
         }
 
         const analysis = {
-            all: formattedSubmissions,
+            all: canViewAll ? formattedSubmissions : [],
             me: formattedMySubmissions
         };
 
@@ -556,17 +649,18 @@ const getCourseAnalysis = async (req, res) => {
 const analysisSubmissionOfCourse = async (req, res) => {
     try {
         let course = await Course.findByPk(req.params.id, {
-            attributes: ['units']
+            attributes: ['id', 'units']
         });
 
         if (!course) {
             course = await Course.findOne({
                 where: { slug: req.params.id },
-                attributes: ['units']
+                attributes: ['id', 'units']
             });
         }
 
         if (course) {
+            const courseUsernames = await getActiveCourseUsernames(course.id);
             const unitIds = course.units || [];
             const units = await Unit.findAll({
                 where: { id: unitIds },
@@ -608,7 +702,10 @@ const analysisSubmissionOfCourse = async (req, res) => {
 
                             for (const period of periods) {
                                 let whereClause = {
-                                    problem_slug: problem.slug
+                                    problem_slug: problem.slug,
+                                    username: {
+                                        [Op.in]: courseUsernames
+                                    }
                                 };
 
                                 if (period.days) {
@@ -711,6 +808,7 @@ const getProblemAnalysisOfCourse = async (req, res) => {
         }
 
         if (course) {
+            const courseUsernames = await getActiveCourseUsernames(course.id);
             const unitIds = course.units || [];
             const units = await Unit.findAll({
                 where: {
@@ -751,7 +849,10 @@ const getProblemAnalysisOfCourse = async (req, res) => {
                             // Lấy số lượt nộp bài cho mỗi problem
                             const submissionCount = await Submission.count({
                                 where: {
-                                    problem_slug: problem.slug
+                                    problem_slug: problem.slug,
+                                    username: {
+                                        [Op.in]: courseUsernames
+                                    }
                                 }
                             });
                             problem.dataValues.submissionCount = submissionCount;
@@ -759,7 +860,10 @@ const getProblemAnalysisOfCourse = async (req, res) => {
                             // Tìm người nộp bài đầu tiên
                             const firstSubmission = await Submission.findOne({
                                 where: {
-                                    problem_slug: problem.slug
+                                    problem_slug: problem.slug,
+                                    username: {
+                                        [Op.in]: courseUsernames
+                                    }
                                 },
                                 order: [['createdAt', 'ASC']],
                                 attributes: ['username', 'createdAt', 'status']
@@ -787,6 +891,9 @@ const getProblemAnalysisOfCourse = async (req, res) => {
                             const firstPassedSubmission = await Submission.findOne({
                                 where: {
                                     problem_slug: problem.slug,
+                                    username: {
+                                        [Op.in]: courseUsernames
+                                    },
                                     status: 'PASSED'
                                 },
                                 order: [['createdAt', 'ASC']],
@@ -828,6 +935,9 @@ const getProblemAnalysisOfCourse = async (req, res) => {
                             const coursePassedSubmission = await Submission.findOne({
                                 where: {
                                     problem_slug: problem.slug,
+                                    username: {
+                                        [Op.in]: courseUsernames
+                                    },
                                     status: 'PASSED'
                                 },
                                 order: [['createdAt', 'ASC']]
@@ -839,6 +949,9 @@ const getProblemAnalysisOfCourse = async (req, res) => {
                                 courseAttemptsBeforePassed = await Submission.count({
                                     where: {
                                         problem_slug: problem.slug,
+                                        username: {
+                                            [Op.in]: courseUsernames
+                                        },
                                         createdAt: {
                                             [Op.lte]: coursePassedSubmission.createdAt
                                         }
@@ -848,6 +961,9 @@ const getProblemAnalysisOfCourse = async (req, res) => {
                                 courseAttemptsBeforePassed = await Submission.count({
                                     where: {
                                         problem_slug: problem.slug,
+                                        username: {
+                                            [Op.in]: courseUsernames
+                                        }
                                     }
                                 });
                             }
@@ -857,7 +973,10 @@ const getProblemAnalysisOfCourse = async (req, res) => {
                             // Lấy danh sách người dùng đã nộp bài và kết quả của họ
                             const submissions = await Submission.findAll({
                                 where: {
-                                    problem_slug: problem.slug
+                                    problem_slug: problem.slug,
+                                    username: {
+                                        [Op.in]: courseUsernames
+                                    }
                                 },
                                 attributes: ['username', 'status', 'createdAt'],
                                 order: [['createdAt', 'DESC']],

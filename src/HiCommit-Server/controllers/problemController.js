@@ -1,5 +1,6 @@
 const User = require('../models/user');
 const Course = require('../models/course');
+const UserCourse = require('../models/user_course');
 const Unit = require('../models/unit');
 const Problem = require('../models/problem');
 const Example = require('../models/example');
@@ -11,6 +12,7 @@ const SubmissionTestResult = require('../models/submissionTestResult');
 const SubmissionProvenance = require('../models/submissionProvenance');
 const SubmissionSource = require('../models/submissionSource');
 const Contest = require('../models/contest');
+const UserContest = require('../models/user_contest');
 const { fn, col, where, literal, Op } = require('sequelize');
 const sequelize = require('../configs/database');
 const axios = require('axios');
@@ -61,6 +63,77 @@ const createProblem = async (req, res) => {
                 code: 'DUPLICATE_SLUG',
                 message: 'Mã bài tập đã tồn tại.'
             });
+        }
+
+        // TEACHER chỉ được tạo problem trong course/contest do mình sở hữu
+        if (req.user.role !== 'ADMIN') {
+            if (type === 'COURSE') {
+                if (!parent) {
+                    await transaction.rollback();
+                    return res.status(400).json({
+                        message: 'Course parent is required'
+                    });
+                }
+
+                const course = await Course.findByPk(parent, { transaction });
+
+                if (!course) {
+                    await transaction.rollback();
+                    return res.status(404).json({
+                        error: 'Course not found'
+                    });
+                }
+
+                if (course.created_by !== req.user.id) {
+                    await transaction.rollback();
+                    return res.status(403).json({
+                        error: 'Forbidden'
+                    });
+                }
+
+                if (unit) {
+                    const unitRecord = await Unit.findByPk(unit, { transaction });
+
+                    if (!unitRecord) {
+                        await transaction.rollback();
+                        return res.status(404).json({
+                            error: 'Unit not found'
+                        });
+                    }
+
+                    if (unitRecord.course_id !== course.id) {
+                        await transaction.rollback();
+                        return res.status(403).json({
+                            error: 'Unit does not belong to this course'
+                        });
+                    }
+                }
+            }
+
+            if (type === 'CONTEST') {
+                if (!parent) {
+                    await transaction.rollback();
+                    return res.status(400).json({
+                        message: 'Contest parent is required'
+                    });
+                }
+
+                const contest = await Contest.findByPk(parent, { transaction });
+
+                if (!contest) {
+                    await transaction.rollback();
+                    return res.status(404).json({
+                        error: 'Contest not found'
+                    });
+                }
+
+                if (contest.created_by !== req.user.id) {
+                    await transaction.rollback();
+                    return res.status(403).json({
+                        error: 'Forbidden'
+                    });
+                }
+            }
         }
 
         // Duyệt qua mảng examples và testcases, tạo mới các bản ghi tương ứng
@@ -132,7 +205,16 @@ const getProblems = async (req, res) => {
             order: [['createdAt', 'DESC']],
             where: {
                 type: 'FREE'
-            }
+            },
+            attributes: [
+                'id',
+                'name',
+                'slug',
+                'tags',
+                'language',
+                'level',
+                'score'
+            ]
         });
 
         const problemsWithCounts = [];
@@ -155,11 +237,9 @@ const getProblems = async (req, res) => {
                 }
             });
 
-            // Thêm các trường submission_count và pass_count vào problem
-            problem.submission_count = submissionCount;
-            problem.pass_count = passCount;
-
-            problem.ac_rate = submissionCount > 0 ? Math.round((passCount / submissionCount) * 100) : 0;
+            problem.ac_rate = submissionCount > 0
+                ? Math.round((passCount / submissionCount) * 100)
+                : 0;
 
             problemsWithCounts.push(problem); // Lưu problem đã được cập nhật
         }
@@ -218,11 +298,38 @@ const getProblemByIDorSlug = async (req, res) => {
 
         problemData.examples = examples;
 
-        // Nếu là bài tập trong khóa học thì trả về thông tin khóa học và unit chứa bài tập này
+        // Nếu là bài tập trong khóa học thì kiểm tra quyền truy cập khóa học
         if (problem.type === 'COURSE') {
             const course = await Course.findByPk(problem.parent, {
-                attributes: ['id', 'name', 'slug'],
+                attributes: ['id', 'name', 'slug', 'created_by'],
             });
+
+            if (!course) {
+                return res.status(404).json({ error: 'Course not found' });
+            }
+
+            const isAdmin = req.user.role === 'ADMIN';
+            const isCourseTeacher =
+                req.user.role === 'TEACHER' &&
+                req.user.id === course.created_by;
+
+            let isActiveMember = false;
+
+            if (!isAdmin && !isCourseTeacher) {
+                const membership = await UserCourse.findOne({
+                    where: {
+                        email: req.user.email,
+                        course_id: course.id,
+                        status: 'ACTIVE'
+                    }
+                });
+
+                isActiveMember = !!membership;
+            }
+
+            if (!isAdmin && !isCourseTeacher && !isActiveMember) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
 
             const units = await Unit.findAll({
                 where: {
@@ -238,25 +345,53 @@ const getProblemByIDorSlug = async (req, res) => {
                 }
             }
 
-            if (!course) {
-                return res.status(404).json({ error: 'Course not found' });
-            }
-
-            problemData.parent = course;
-            problemData.unit = foundUnit;
+            problemData.parent = {
+                id: course.id,
+                name: course.name,
+                slug: course.slug
+            };
+            problemData.unit = foundUnit ? {
+                id: foundUnit.id,
+                name: foundUnit.name
+            } : null;
         }
 
-        // Nếu là bài tập trong cuộc thi thì trả về thông tin cuộc thi chứa bài tập này
+        // Nếu là bài tập trong cuộc thi thì kiểm tra quyền truy cập contest
         if (problem.type === 'CONTEST') {
             const contest = await Contest.findByPk(problem.parent, {
-                attributes: ['id', 'name', 'slug'],
+                attributes: ['id', 'name', 'slug', 'created_by'],
             });
 
             if (!contest) {
                 return res.status(404).json({ error: 'Contest not found' });
             }
 
-            problemData.parent = contest;
+            const isAdmin = req.user.role === 'ADMIN';
+            const isCreator = req.user.id === contest.created_by;
+
+            let isActiveParticipant = false;
+
+            if (!isAdmin && !isCreator) {
+                const membership = await UserContest.findOne({
+                    where: {
+                        contest_id: contest.id,
+                        user_id: req.user.id,
+                        status: 'ACTIVE'
+                    }
+                });
+
+                isActiveParticipant = !!membership;
+            }
+
+            if (!isAdmin && !isCreator && !isActiveParticipant) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+
+            problemData.parent = {
+                id: contest.id,
+                name: contest.name,
+                slug: contest.slug
+            };
         }
 
 
@@ -302,11 +437,38 @@ const getProblemByIDForAdmin = async (req, res) => {
         problemData.examples = examples;
         problemData.testcases = testcases;
 
-        // Nếu là bài tập trong khóa học thì trả về thông tin khóa học và unit chứa bài tập này
+        // Nếu là bài tập trong khóa học thì kiểm tra quyền truy cập khóa học
         if (problem.type === 'COURSE') {
             const course = await Course.findByPk(problem.parent, {
-                attributes: ['id', 'name', 'slug'],
+                attributes: ['id', 'name', 'slug', 'created_by'],
             });
+
+            if (!course) {
+                return res.status(404).json({ error: 'Course not found' });
+            }
+
+            const isAdmin = req.user.role === 'ADMIN';
+            const isCourseTeacher =
+                req.user.role === 'TEACHER' &&
+                req.user.id === course.created_by;
+
+            let isActiveMember = false;
+
+            if (!isAdmin && !isCourseTeacher) {
+                const membership = await UserCourse.findOne({
+                    where: {
+                        email: req.user.email,
+                        course_id: course.id,
+                        status: 'ACTIVE'
+                    }
+                });
+
+                isActiveMember = !!membership;
+            }
+
+            if (!isAdmin && !isCourseTeacher && !isActiveMember) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
 
             const units = await Unit.findAll({
                 where: {
@@ -322,11 +484,11 @@ const getProblemByIDForAdmin = async (req, res) => {
                 }
             }
 
-            if (!course) {
-                return res.status(404).json({ error: 'Course not found' });
-            }
-
-            problemData.parent = course;
+            problemData.parent = {
+                id: course.id,
+                name: course.name,
+                slug: course.slug
+            };
             problemData.unit = foundUnit;
         }
 
@@ -846,6 +1008,25 @@ const deleteProblemByID = async (req, res) => {
             }
         }
 
+        // Remove the problem reference from its parent contest
+        if (problem.type === 'CONTEST' && problem.parent) {
+            const contest = await Contest.findByPk(problem.parent, {
+                transaction
+            });
+
+            if (contest) {
+                const problems = contest.problems || [];
+
+                if (Array.isArray(problems) && problems.includes(problem.id)) {
+                    contest.problems = problems.filter(
+                        id => id !== problem.id
+                    );
+
+                    await contest.save({ transaction });
+                }
+            }
+        }
+
         // Soft-delete the problem
         await problem.destroy({ transaction });
 
@@ -866,7 +1047,16 @@ const getProblemsForAdmin = async (req, res) => {
             order: [['createdAt', 'DESC']],
             where: {
                 type: 'FREE'
-            }
+            },
+            attributes: [
+                'id',
+                'name',
+                'slug',
+                'tags',
+                'language',
+                'level',
+                'score'
+            ]
         });
 
         const problemsWithCounts = [];
@@ -889,11 +1079,9 @@ const getProblemsForAdmin = async (req, res) => {
                 }
             });
 
-            // Thêm các trường submission_count và pass_count vào problem
-            problem.submission_count = submissionCount;
-            problem.pass_count = passCount;
-
-            problem.ac_rate = submissionCount > 0 ? Math.round((passCount / submissionCount) * 100) : 0;
+            problem.ac_rate = submissionCount > 0
+                ? Math.round((passCount / submissionCount) * 100)
+                : 0;
 
             problemsWithCounts.push(problem); // Lưu problem đã được cập nhật
         }

@@ -97,15 +97,27 @@ const updateDiscussion = async (req, res) => {
         const { title, description } = req.body;
         const discussion = await Discussion.findByPk(req.params.id);
 
-        if (discussion) {
-            await discussion.update({ title, description });
-            io.emit('updateDiscussion', discussion);
-            res.status(200).json(discussion);
-        } else {
-            res.status(404).json({ message: 'Không tìm thấy cuộc thảo luận' });
+        if (!discussion) {
+            return res.status(404).json({
+                message: 'Không tìm thấy cuộc thảo luận'
+            });
         }
+
+        const isOwner = discussion.username === req.user.username;
+        const isAdmin = req.user.role === 'ADMIN';
+
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({
+                message: 'Bạn không có quyền chỉnh sửa cuộc thảo luận này'
+            });
+        }
+
+        await discussion.update({ title, description });
+        io.emit('updateDiscussion', discussion);
+
+        return res.status(200).json(discussion);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 };
 
@@ -113,17 +125,30 @@ const updateDiscussionStatus = async (req, res) => {
     try {
         const discussion = await Discussion.findByPk(req.params.id);
 
-        const newStatus = discussion.status === 'OPEN' ? 'CLOSED' : 'OPEN';
-
-        if (discussion) {
-            await discussion.update({ status: newStatus });
-            io.emit('updateDiscussion', discussion);
-            res.status(200).json(discussion);
-        } else {
-            res.status(404).json({ message: 'Không tìm thấy cuộc thảo luận' });
+        if (!discussion) {
+            return res.status(404).json({
+                message: 'Không tìm thấy cuộc thảo luận'
+            });
         }
+
+        const isOwner = discussion.username === req.user.username;
+        const isAdmin = req.user.role === 'ADMIN';
+
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({
+                message: 'Bạn không có quyền thay đổi trạng thái cuộc thảo luận này'
+            });
+        }
+
+        const newStatus =
+            discussion.status === 'OPEN' ? 'CLOSED' : 'OPEN';
+
+        await discussion.update({ status: newStatus });
+        io.emit('updateDiscussion', discussion);
+
+        return res.status(200).json(discussion);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 };
 
@@ -131,14 +156,28 @@ const deleteDiscussion = async (req, res) => {
     try {
         const discussion = await Discussion.findByPk(req.params.id);
 
-        if (discussion) {
-            await discussion.destroy();
-            res.status(200).json({ message: 'Cuộc thảo luận đã được xóa' });
-        } else {
-            res.status(404).json({ message: 'Không tìm thấy cuộc thảo luận' });
+        if (!discussion) {
+            return res.status(404).json({
+                message: 'Không tìm thấy cuộc thảo luận'
+            });
         }
+
+        const isOwner = discussion.username === req.user.username;
+        const isAdmin = req.user.role === 'ADMIN';
+
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({
+                message: 'Bạn không có quyền xoá cuộc thảo luận này'
+            });
+        }
+
+        await discussion.destroy();
+
+        return res.status(200).json({
+            message: 'Cuộc thảo luận đã được xóa'
+        });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 };
 

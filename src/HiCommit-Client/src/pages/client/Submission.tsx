@@ -400,9 +400,11 @@ function Result() {
                                                         <DialogClose>
                                                             <Button variant="ghost" className="mr-1">Đóng</Button>
                                                         </DialogClose>
-                                                        <DialogClose asChild>
-                                                            <Button onClick={() => handleReSubmit()}>Nộp lại</Button>
-                                                        </DialogClose>
+                                                        {loginContext.user?.username === submission?.actor?.username && (
+                                                            <DialogClose asChild>
+                                                                <Button onClick={() => handleReSubmit()}>Nộp lại</Button>
+                                                            </DialogClose>
+                                                        )}
                                                     </DialogFooter>
                                                 </DialogContent>
                                             </Dialog>

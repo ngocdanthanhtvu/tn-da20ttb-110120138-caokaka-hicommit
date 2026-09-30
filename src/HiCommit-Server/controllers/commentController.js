@@ -89,44 +89,68 @@ const toggleLikeComment = async (req, res) => {
 
 const updateComment = async (req, res) => {
     const { comment_id } = req.params;
+
     try {
         const { description } = req.body;
         const comment = await Comment.findByPk(comment_id);
+
         if (!comment) {
-            return res.status(404).json({ error: 'Không tìm thấy bình luận này' });
+            return res.status(404).json({
+                error: 'Không tìm thấy bình luận này'
+            });
         }
 
-        if (comment.username !== req.user.username) {
-            return res.status(403).json({ error: 'Bạn không có quyền chỉnh sửa bình luận này' });
+        const isOwner = comment.username === req.user.username;
+        const isAdmin = req.user.role === 'ADMIN';
+
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({
+                error: 'Bạn không có quyền chỉnh sửa bình luận này'
+            });
         }
 
-        await comment.update({ description: description });
+        await comment.update({ description });
 
         io.emit('updateComment', comment);
 
-        res.status(200).json(comment);
+        return res.status(200).json(comment);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
-}
+};
 
 const deleteComment = async (req, res) => {
     const { id } = req.params;
+
     try {
         const comment = await Comment.findByPk(id);
+
         if (!comment) {
-            return res.status(404).json({ error: 'Không tìm thấy bình luận này' });
+            return res.status(404).json({
+                error: 'Không tìm thấy bình luận này'
+            });
+        }
+
+        const isOwner = comment.username === req.user.username;
+        const isAdmin = req.user.role === 'ADMIN';
+
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({
+                error: 'Bạn không có quyền xóa bình luận này'
+            });
         }
 
         await comment.destroy();
 
         io.emit('updateComment', comment);
 
-        res.status(200).json({ message: 'Bình luận đã được xóa thành công' });
+        return res.status(200).json({
+            message: 'Bình luận đã được xóa thành công'
+        });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
-}
+};
 
 module.exports = {
     createComment,

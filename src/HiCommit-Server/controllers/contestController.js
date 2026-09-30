@@ -17,7 +17,7 @@ const e = require('express');
 const getContests = async (req, res) => {
     try {
         const contests = await Contest.findAll({
-            attributes: ['id', 'created_by', 'name', 'start_time', 'end_time', 'duration', 'public', 'join_key', 'slug', 'pinned', 'createdAt'],
+            attributes: ['id', 'created_by', 'name', 'start_time', 'end_time', 'duration', 'public', 'slug', 'pinned', 'createdAt'],
             where: {
                 publish: true
             },
@@ -54,14 +54,15 @@ const getContests = async (req, res) => {
             const contest = contests[i];
             const count = await UserContest.count({
                 where: {
-                    contest_id: contest.id
+                    contest_id: contest.id,
+                    status: 'ACTIVE'
                 }
             });
             const user = await User.findOne({
                 where: {
                     id: contest.created_by
                 },
-                attributes: ['id', 'username', 'email', 'avatar_url', 'role']
+                attributes: ['id', 'username', 'avatar_url', 'role']
             });
             contest.dataValues.members = count;
             contest.dataValues.creator = user;
@@ -84,7 +85,19 @@ const getContestByID = async (req, res) => {
             where: {
                 id
             },
-            attributes: ['id', 'created_by', 'name', 'start_time', 'end_time', 'duration', 'public', 'join_key', 'slug', 'pinned', 'createdAt', 'problems']
+            attributes: [
+                'id',
+                'created_by',
+                'name',
+                'start_time',
+                'end_time',
+                'duration',
+                'public',
+                'slug',
+                'pinned',
+                'createdAt',
+                'problems'
+            ]
         });
 
         if (!contest) {
@@ -93,50 +106,74 @@ const getContestByID = async (req, res) => {
             });
         }
 
-        // Lấy thông tin những người tham gia cùng với thông tin của họ
+        const membership = await UserContest.findOne({
+            where: {
+                contest_id: contest.id,
+                user_id: req.user.id
+            }
+        });
+
+        const isAdmin = req.user.role === 'ADMIN';
+        const isCreator = req.user.id === contest.created_by;
+        const isActiveParticipant =
+            !!membership && membership.status === 'ACTIVE';
+
+        const canViewContent =
+            isAdmin || isCreator || isActiveParticipant;
+
+        contest.dataValues.isJoined = isActiveParticipant;
+
+        if (!canViewContent) {
+            contest.dataValues.problems = [];
+            contest.dataValues.members = [];
+
+            return res.status(200).json(contest);
+        }
+
         const members = await UserContest.findAll({
             where: {
-                contest_id: id
+                contest_id: id,
+                status: 'ACTIVE'
             },
             include: [
                 {
                     model: User,
-                    attributes: ['id', 'username', 'email', 'role']
+                    attributes: ['id', 'username', 'role', 'avatar_url']
                 }
-            ]
+            ],
+            order: [['createdAt', 'ASC']]
         });
 
-        // Đưa thông tin user ra ngoài
-        const membersWithUserInfo = members.map(member => {
+        contest.dataValues.members = members.map(member => ({
+            user_id: member.User.id,
+            username: member.User.username,
+            role: member.User.role,
+            avatar_url: member.User.avatar_url
+        }));
 
-            const user = {
-                ...member.dataValues,
-                user_id: member.User.id,
-                username: member.User.username,
-                email: member.User.email,
-                role: member.User.role
-            };
-
-            delete user.User;
-
-            return user;
-        });
-
-        // Lấy thông tin các bài tập trong cuộc thi
         const problems = [];
+
         for (let i = 0; i < contest.problems.length; i++) {
             const problem = await Problem.findOne({
                 where: {
                     id: contest.problems[i]
                 },
-                attributes: ['id', 'name', 'slug', 'language', 'type', 'level', 'score'],
+                attributes: [
+                    'id',
+                    'name',
+                    'slug',
+                    'language',
+                    'type',
+                    'level',
+                    'score'
+                ]
             });
 
-            problems.push(problem);
+            if (problem) {
+                problems.push(problem);
+            }
         }
 
-        // Thêm thông tin members vào contest
-        contest.dataValues.members = membersWithUserInfo;
         contest.dataValues.problems = problems;
 
         return res.status(200).json(contest);
@@ -353,22 +390,47 @@ const getSubmissionsByContestID = async (req, res) => {
 
         const problemSlugs = problems.map(problem => problem.slug);
 
+        const activeParticipants = await UserContest.findAll({
+            where: {
+                contest_id: contest.id,
+                status: 'ACTIVE'
+            },
+            include: [
+                {
+                    model: User,
+                    attributes: ['username']
+                }
+            ]
+        });
+
+        const participantUsernames = activeParticipants
+            .map(member => member.User?.username)
+            .filter(Boolean);
+
         const submissions = await Submission.findAll({
             where: {
-                problem_slug: problemSlugs
+                problem_slug: problemSlugs,
+                username: participantUsernames
             },
+            attributes: [
+                'id',
+                'username',
+                'problem_slug',
+                'status',
+                'duration',
+                'createdAt'
+            ],
             order: [['createdAt', 'DESC']]
         });
 
-        // Thêm score vào submission dựa vào problem_slug
+        // Chỉ bổ sung điểm của bài toán phục vụ leaderboard
         for (let i = 0; i < submissions.length; i++) {
             const submission = submissions[i];
-            const problem = problems.find(problem => problem.slug === submission.problem_slug);
-            submission.dataValues.score = problem.score;
-            delete submission.dataValues.code;
-            delete submission.dataValues.style_check;
-            delete submission.dataValues.result;
-            delete submission.dataValues.sha;
+            const problem = problems.find(
+                problem => problem.slug === submission.problem_slug
+            );
+
+            submission.dataValues.score = problem ? problem.score : 0;
         }
 
         res.status(200).json(submissions);
@@ -383,7 +445,8 @@ const getMembersByContestID = async (req, res) => {
 
         const members = await UserContest.findAll({
             where: {
-                contest_id: id
+                contest_id: id,
+                status: 'ACTIVE'
             },
             order: [
                 ['createdAt', 'ASC']
@@ -391,28 +454,18 @@ const getMembersByContestID = async (req, res) => {
             include: [
                 {
                     model: User,
-                    attributes: ['id', 'username', 'email', 'role', 'avatar_url']
+                    attributes: ['id', 'username', 'role', 'avatar_url']
                 }
             ]
         });
 
-        // Đưa thông tin user ra ngoài
-        const membersWithUserInfo = members.map(member => {
-
-            const user = {
-                ...member.dataValues,
-                user_id: member.User.id,
-                username: member.User.username,
-                email: member.User.email,
-                role: member.User.role,
-                avatar_url: member.User.avatar_url
-            };
-
-            delete user.User;
-
-            return user;
-        }
-        );
+        // Chỉ trả thông tin thành viên cần cho giao diện contest
+        const membersWithUserInfo = members.map(member => ({
+            user_id: member.User.id,
+            username: member.User.username,
+            role: member.User.role,
+            avatar_url: member.User.avatar_url
+        }));
 
         return res.status(200).json(membersWithUserInfo);
 

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const githubOidcMiddleware = require('../middleware/githubOidcMiddleware');
+const problemMiddleware = require('../middleware/problemMiddleware');
 
 const {
     createProblem,
@@ -21,7 +22,7 @@ const {
 
 router.get('/list', authMiddleware.authenticate, getProblems);
 router.get('/tags', getAllTags);
-router.get('/admin/:id', authMiddleware.authenticate, authMiddleware.isAdminOrTeacher, getProblemByIDForAdmin);
+router.get('/admin/:id', authMiddleware.authenticate, problemMiddleware.canManageProblem, getProblemByIDForAdmin);
 router.get('/:id/analysis/submissions', authMiddleware.authenticate,countSubmissions60daysAgo);
 router.get('/:id', authMiddleware.authenticate, getProblemByIDorSlug);
 router.get(
@@ -32,7 +33,7 @@ router.get(
 
 router.post('/create', authMiddleware.authenticate, authMiddleware.isAdminOrTeacher, createProblem);
 
-router.put('/:id', authMiddleware.authenticate, authMiddleware.isAdminOrTeacher, updateProblem);
+router.put('/:id', authMiddleware.authenticate, problemMiddleware.canManageProblem, updateProblem);
 
 // For SUBMISSIONS
 router.post(
@@ -41,6 +42,6 @@ router.post(
     writeResultFromGitHub
 );
 
-router.delete('/:id', authMiddleware.authenticate, authMiddleware.isAdminOrTeacher, deleteProblemByID);
+router.delete('/:id', authMiddleware.authenticate, problemMiddleware.canManageProblem, deleteProblemByID);
 
 module.exports = router;

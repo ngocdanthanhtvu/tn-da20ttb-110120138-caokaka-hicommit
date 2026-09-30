@@ -124,7 +124,7 @@ function Problem() {
     const [problem, setProblem] = useState<any>();
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [discussions, setDiscussions] = useState<any[]>([]);
-    const [selectedType, setSelectedType] = useState("all");
+    const [selectedType, setSelectedType] = useState("me");
     const [chartData, setChartData] = useState<any[]>([]);
     const [mySubmited, setMySubmited] = useState<any>({});
 
@@ -608,7 +608,9 @@ function Problem() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Tất cả</SelectItem>
+                                    {loginContext.user?.role !== "STUDENT" && (
+                                        <SelectItem value="all">Tất cả</SelectItem>
+                                    )}
                                     <SelectItem value="me">Chỉ mình tôi</SelectItem>
                                 </SelectContent>
                             </Select>

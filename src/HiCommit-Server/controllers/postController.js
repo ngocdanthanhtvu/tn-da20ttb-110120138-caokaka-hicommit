@@ -43,33 +43,54 @@ const getPosts = async (req, res) => {
 
 const getPostByIdOrSlug = async (req, res) => {
     try {
-        const post = await Post.findByPk(req.params.id);
-        if (post) {
-            res.status(200).json(post);
-        } else {
-            const post = await Post.findOne({ where: { slug: req.params.id } });
-            if (post) {
-                res.status(200).json(post);
-            } else {
-                res.status(404).json({ message: 'Post not found' });
+        let post = await Post.findOne({
+            where: {
+                id: req.params.id,
+                status: 'ACTIVE',
+                publish: true
             }
+        });
+
+        if (!post) {
+            post = await Post.findOne({
+                where: {
+                    slug: req.params.id,
+                    status: 'ACTIVE',
+                    publish: true
+                }
+            });
         }
+
+        if (!post) {
+            return res.status(404).json({
+                message: 'Post not found'
+            });
+        }
+
+        return res.status(200).json(post);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 };
 
 const getPostByTag = async (req, res) => {
     try {
-        const tag = req.params.tag.trim(); // Lấy tag từ parameter và loại bỏ khoảng trắng thừa
+        const tag = req.params.tag.trim();
 
         const posts = await Post.findAll({
-            where: fn('JSON_CONTAINS', col('tags'), JSON.stringify(tag))
+            where: {
+                status: 'ACTIVE',
+                publish: true,
+                [require('sequelize').Op.and]: where(
+                    fn('JSON_CONTAINS', col('tags'), JSON.stringify(tag)),
+                    1
+                )
+            }
         });
 
-        res.status(200).json(posts);
+        return res.status(200).json(posts);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 };
 

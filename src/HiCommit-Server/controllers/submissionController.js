@@ -6,7 +6,6 @@ const Course = require('../models/course');
 const Unit = require('../models/unit');
 const Contest = require('../models/contest');
 const SubmissionCompileResult = require('../models/submissionCompileResult');
-const io = require('../server');
 
 // Submission(id, problem_slug, user_id, sha, commit, run_id, code, status, duration, result, style_check, pass_count, total_count)
 // Testcase(id, input, output, sugestion)
@@ -21,8 +20,6 @@ const getMySubmissions = async (req, res) => {
             order: [['createdAt', 'DESC']]
         });
 
-        io.emit('new_submission', submissions);
-
         res.status(200).json(submissions);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -31,10 +28,37 @@ const getMySubmissions = async (req, res) => {
 
 const getSubmissionsByProblem = async (req, res) => {
     try {
-        const submissions = await Submission.findAll({
+        const problem = await Problem.findOne({
             where: {
-                problem_slug: req.params.problem_slug
-            },
+                slug: req.params.problem_slug
+            }
+        });
+
+        if (!problem) {
+            return res.status(404).json({ error: 'Problem not found' });
+        }
+
+        let canViewAll = req.user.role === 'ADMIN';
+
+        if (req.user.role === 'TEACHER' && problem.type === 'COURSE') {
+            const course = await Course.findByPk(problem.parent, {
+                attributes: ['id', 'created_by']
+            });
+
+            canViewAll = !!course && course.created_by === req.user.id;
+        }
+
+        const where = {
+            problem_slug: req.params.problem_slug
+        };
+
+        if (!canViewAll) {
+            where.username = req.user.username;
+        }
+
+        const submissions = await Submission.findAll({
+            where,
+            attributes: ['username', 'status'],
             order: [['createdAt', 'DESC']]
         });
 
@@ -69,6 +93,10 @@ const getSubmissionById = async (req, res) => {
             }
         });
 
+        if (!submission) {
+            return res.status(404).json({ error: 'Submission not found' });
+        }
+
         // Lấy thông tin actor từ username
         const user = await User.findOne({
             where: {
@@ -84,20 +112,43 @@ const getSubmissionById = async (req, res) => {
             }
         });
 
+        if (!problem) {
+            return res.status(404).json({ error: 'Problem not found' });
+        }
+
+        // Xác định quyền xem submission
+        const isOwner = submission.username === req.user.username;
+        const isAdmin = req.user.role === 'ADMIN';
+        let isCourseTeacher = false;
+
         // Tạo một bản sao đối tượng problem để thao tác
         let problemData = problem.toJSON();
 
-        // Nếu là bài tập trong khóa học thì trả về thông tin khóa học và unit chứa bài tập này
+        // Nếu là bài tập trong khóa học thì kiểm tra teacher có phải chủ khóa học không
         if (problem.type === 'COURSE') {
             const course = await Course.findByPk(problem.parent, {
-                attributes: ['id', 'name', 'slug'],
+                attributes: ['id', 'name', 'slug', 'created_by'],
             });
 
             if (!course) {
                 return res.status(404).json({ error: 'Course not found' });
             }
 
-            problemData.parent = course;
+            isCourseTeacher =
+                req.user.role === 'TEACHER' &&
+                req.user.id === course.created_by;
+
+            problemData.parent = {
+                id: course.id,
+                name: course.name,
+                slug: course.slug
+            };
+        }
+
+        const canViewFull = isOwner || isAdmin || isCourseTeacher;
+
+        if (!canViewFull && !submission.public) {
+            return res.status(403).json({ error: 'Forbidden' });
         }
 
         problemData.testcase_count = problemData.testcases.length;
@@ -132,11 +183,26 @@ const getSubmissionById = async (req, res) => {
         });
 
         submission.dataValues.problem = problemData;
-        submission.dataValues.testcases = testcases;
         submission.dataValues.actor = user;
-        submission.dataValues.compile_result = compileResult;
 
-        res.status(200).json(submission);
+        if (canViewFull) {
+            submission.dataValues.testcases = testcases;
+            submission.dataValues.compile_result = compileResult;
+
+            return res.status(200).json(submission);
+        }
+
+        // Public viewer: chỉ công khai mã nguồn và metadata cơ bản
+        return res.status(200).json({
+            id: submission.id,
+            problem_slug: submission.problem_slug,
+            code: submission.code,
+            public: submission.public,
+            status: submission.status,
+            createdAt: submission.createdAt,
+            problem: problemData,
+            actor: user
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -181,8 +247,21 @@ const getMySubmissionsResult = async (req, res) => {
 const togglePublicCode = async (req, res) => {
     try {
         const submission = await Submission.findByPk(req.params.id);
+
+        if (!submission) {
+            return res.status(404).json({ error: 'Submission not found' });
+        }
+
+        if (
+            req.user.role !== 'ADMIN' &&
+            submission.username !== req.user.username
+        ) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
         submission.public = !submission.public;
         await submission.save();
+
         res.status(200).json(submission);
     } catch (error) {
         res.status(500).json({ error: error.message });

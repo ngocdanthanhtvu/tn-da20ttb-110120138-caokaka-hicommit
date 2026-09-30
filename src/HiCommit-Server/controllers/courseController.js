@@ -55,6 +55,9 @@ const getCourses = async (req, res) => {
             where: {
                 publish: true
             },
+            attributes: {
+                exclude: ['join_key']
+            },
             order: [['created_at', 'DESC']]
         });
 
@@ -245,30 +248,43 @@ const getCourseByIdOrSlug = async (req, res) => {
                 }
             });
 
-            // Nếu user.id có trong members thì trả về thông tin isJoined
-            if (userCourse) {
-                course.dataValues.isJoined = true;
+            const isAdmin = req.user.role === 'ADMIN';
+            const isCourseTeacher =
+                req.user.role === 'TEACHER' &&
+                req.user.id === course.created_by;
+            const isActiveMember =
+                !!userCourse && userCourse.status === 'ACTIVE';
+
+            const canViewContent =
+                isAdmin || isCourseTeacher || isActiveMember;
+
+            // Giữ tương thích với frontend hiện tại:
+            // người có quyền truy cập nội dung được xem như đã tham gia
+            course.dataValues.isJoined = canViewContent;
+
+            if (canViewContent) {
+                // Endpoint phía client không trả email thành viên
+                const userCourses = await UserCourse.findAll({
+                    where: {
+                        course_id: course.id,
+                        status: 'ACTIVE'
+                    },
+                    attributes: ['id', 'status'],
+                    include: [
+                        {
+                            model: User,
+                            attributes: ['id', 'username', 'avatar_url', 'role']
+                        }
+                    ],
+                    order: [['createdAt', 'ASC']]
+                });
+
+                course.dataValues.members = userCourses;
             } else {
-                course.dataValues.isJoined = false;
+                // Người chưa có quyền chỉ được xem thông tin preview
+                course.dataValues.units = [];
+                course.dataValues.members = [];
             }
-
-            // Lấy ra danh sách các user trong course
-            const userCourses = await UserCourse.findAll({
-                where: {
-                    course_id: course.id
-                },
-                attributes: ['id', 'email', 'status'],
-                include: [
-                    {
-                        model: User,
-                        attributes: ['id', 'username', 'avatar_url', 'role', 'email']
-                    }
-                ],
-                order: [['createdAt', 'ASC']]
-            });
-
-            // Thêm thông tin các userCourses vào đối tượng course
-            course.dataValues.members = userCourses;
 
             // Xoá join_key để tránh lộ thông tin
             delete course.dataValues.join_key;
@@ -282,85 +298,55 @@ const getCourseByIdOrSlug = async (req, res) => {
     }
 };
 
-// const joinCourse = async (req, res) => {
-//     try {
-//         let course = await Course.findByPk(req.params.id);
-//         const { join_key } = req.body;
-
-//         if (course) {
-//             // Kiểm tra xem members có phải là một mảng không
-//             let members = course.members;
-
-//             if (!course.join_key) {
-//                 // Thêm user.id vào members nếu chưa có
-//                 if (!members.includes(req.user.id)) {
-//                     members.push(req.user.id);
-//                     course.members = members; // Cập nhật trường members
-//                     await course.save();
-//                 }
-//                 return res.status(200).json(course);
-//             } else {
-//                 if (join_key === course.join_key) {
-//                     // Thêm user.id vào members nếu chưa có
-//                     if (!members.includes(req.user.id)) {
-//                         members.push(req.user.id);
-//                         course.members = members; // Cập nhật trường members
-//                         await course.save();
-//                     }
-//                     return res.status(200).json(course);
-//                 } else {
-//                     return res.status(403).json({ message: 'Join key is incorrect' });
-//                 }
-//             }
-
-//         } else {
-//             return res.status(404).json({ message: 'Course not found' });
-//         }
-//     } catch (error) {
-//         return res.status(500).json({ error: error.message });
-//     }
-// };
-
 const joinCourse = async (req, res) => {
     try {
-        let course = await Course.findByPk(req.params.id);
+        const course = await Course.findByPk(req.params.id);
         const { join_key } = req.body;
 
-        if (course) {
-            const userCourse = await UserCourse.findOne({
-                where: {
-                    course_id: course.id,
-                    email: req.user.email
-                }
-            });
-
-            if (userCourse && userCourse.status === 'ACTIVE') {
-                return res.status(400).json({ message: 'Bạn đã tham gia khoá học này' });
-            }
-
-            if (course.public) {
-                const newUserCourse = await UserCourse.create({
-                    course_id: course.id,
-                    email: req.user.email,
-                    status: course.auto_join ? 'ACTIVE' : 'INACTIVE'
-                });
-            } else {
-                if (join_key === course.join_key) {
-                    const newUserCourse = await UserCourse.create({
-                        course_id: course.id,
-                        email: req.user.email,
-                        status: course.auto_join ? 'ACTIVE' : 'INACTIVE'
-                    });
-
-                    return res.status(200).json(newUserCourse);
-                } else {
-                    return res.status(403).json({ message: 'Mật khẩu không chính xác' });
-                }
-            }
-        } else {
+        if (!course) {
             return res.status(404).json({ message: 'Không tìm thấy khoá học' });
         }
 
+        const userCourse = await UserCourse.findOne({
+            where: {
+                course_id: course.id,
+                email: req.user.email
+            }
+        });
+
+        if (userCourse) {
+            if (userCourse.status === 'ACTIVE') {
+                return res.status(400).json({
+                    message: 'Bạn đã tham gia khoá học này'
+                });
+            }
+
+            if (userCourse.status === 'INACTIVE') {
+                return res.status(409).json({
+                    message: 'Yêu cầu tham gia đang chờ duyệt'
+                });
+            }
+
+            if (userCourse.status === 'BANNED') {
+                return res.status(403).json({
+                    message: 'Bạn không có quyền tham gia khoá học này'
+                });
+            }
+        }
+
+        if (!course.public && join_key !== course.join_key) {
+            return res.status(403).json({
+                message: 'Mật khẩu không chính xác'
+            });
+        }
+
+        const newUserCourse = await UserCourse.create({
+            course_id: course.id,
+            email: req.user.email,
+            status: course.auto_join ? 'ACTIVE' : 'INACTIVE'
+        });
+
+        return res.status(200).json(newUserCourse);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
