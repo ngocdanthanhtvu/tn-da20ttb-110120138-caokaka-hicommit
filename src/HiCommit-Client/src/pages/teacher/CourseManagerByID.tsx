@@ -79,7 +79,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useEffect, useRef, useState } from "react";
 import { Label } from "@/components/ui/label";
-import { deleteCourseByID, getCourseByIDForAdmin, updateKey, togglePublishCourse, updateUnits, toggleAutoJoin, togglePublicCourse, addMemberToCourse, deleteMemberFromCourse, addMultipleMembersToCourse } from "@/service/API/Course";
+import { deleteCourseByID, getCourseByIDForAdmin, updateKey, togglePublishCourse, updateUnits, toggleAutoJoin, togglePublicCourse, addMemberToCourse, deleteMemberFromCourse, addMultipleMembersToCourse, approveMemberToCourse } from "@/service/API/Course";
 import { formatTimeAgo } from "@/service/DateTimeService";
 import { set } from "date-fns";
 import { createUnit, updateUnitById } from "@/service/API/Unit";
@@ -411,6 +411,31 @@ function CourseManagerByID() {
         handleGetCourseData();
     }
 
+    const handleApproveMemberToCourse = async (emailToApprove: string) => {
+        await toast.promise(
+            approveMemberToCourse(course_id as string, emailToApprove),
+            {
+                loading: 'Đang chấp nhận...',
+                success: 'Đã chấp nhận thành viên',
+                error: (err) =>
+                    err?.response?.data?.message ||
+                    'Không thể chấp nhận thành viên',
+            },
+            {
+                style: {
+                    borderRadius: '8px',
+                    background: '#222',
+                    color: '#fff',
+                    paddingLeft: '15px',
+                    fontFamily: 'Plus Jakarta Sans',
+                    maxWidth: '700px',
+                }
+            }
+        );
+
+        handleGetCourseData();
+    }
+
     const handleGetCourseData = async () => {
         try {
             const response = await getCourseByIDForAdmin(course_id as string);
@@ -611,7 +636,13 @@ function CourseManagerByID() {
                                                                                     return (
                                                                                         <div className="flex gap-2">
                                                                                             <Button size="sm" className="text-xs h-7 px-2" variant="secondary">Xoá</Button>
-                                                                                            <Button size="sm" className="text-xs h-7 px-2">Chấp nhận</Button>
+                                                                                            <Button
+                                                                                                size="sm"
+                                                                                                className="text-xs h-7 px-2"
+                                                                                                onClick={() => handleApproveMemberToCourse(member?.email)}
+                                                                                            >
+                                                                                                Chấp nhận
+                                                                                            </Button>
                                                                                         </div>
                                                                                     );
                                                                                 }
@@ -968,7 +999,13 @@ function CourseManagerByID() {
                                                                                             return (
                                                                                                 <div className="flex gap-2">
                                                                                                     <Button size="sm" className="text-xs h-7 px-2" variant="secondary">Xoá</Button>
-                                                                                                    <Button size="sm" className="text-xs h-7 px-2">Chấp nhận</Button>
+                                                                                                    <Button
+                                                                                                size="sm"
+                                                                                                className="text-xs h-7 px-2"
+                                                                                                onClick={() => handleApproveMemberToCourse(member?.email)}
+                                                                                            >
+                                                                                                Chấp nhận
+                                                                                            </Button>
                                                                                                 </div>
                                                                                             );
                                                                                         }

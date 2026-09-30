@@ -81,6 +81,19 @@ const addMultipleMembersToCourse = async (courseId: string, emails: string[]) =>
     }
 }
 
+const approveMemberToCourse = async (courseId: string, email: string) => {
+    try {
+        const response = await axiosInstance.put(
+            `/courses/${courseId}/approve-member`,
+            { email }
+        );
+        return response.data;
+    } catch (error) {
+        console.error('Error approving member to course:', error);
+        throw error;
+    }
+}
+
 const deleteMemberFromCourse = async (courseId: string, email: string) => {
     try {
         const response = await axiosInstance.delete(`/courses/${courseId}/delete-member`, { data: { email } });
@@ -201,5 +214,6 @@ export {
     getCoursesForAdmin,
     addMemberToCourse,
     addMultipleMembersToCourse,
+    approveMemberToCourse,
     deleteMemberFromCourse
 };

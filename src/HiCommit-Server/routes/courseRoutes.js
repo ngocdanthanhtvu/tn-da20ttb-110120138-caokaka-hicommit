@@ -13,6 +13,7 @@ const {
     addMemberToCourse,
     addMultipleMembersToCourse,
     deleteMemberFromCourse,
+    approveMemberToCourse,
     updateUnits,
     updateKey,
     togglePublishCourse,
@@ -49,6 +50,7 @@ router.post('/:course_id/units/create', authMiddleware.authenticate, courseMiddl
 router.put('/:course_id/units/:unit_id', authMiddleware.authenticate, courseMiddleware.canManageCourse, updateUnitById);
 
 router.delete('/:course_id/units/:unit_id', authMiddleware.authenticate, courseMiddleware.canManageCourse, deleteUnitById);
+router.put('/:id/approve-member', authMiddleware.authenticate, courseMiddleware.canManageCourse, approveMemberToCourse);
 router.delete('/:id/delete-member', authMiddleware.authenticate, courseMiddleware.canManageCourse, deleteMemberFromCourse);
 router.delete('/:id', authMiddleware.authenticate, courseMiddleware.isAuthor, deleteCourse);
 module.exports = router;

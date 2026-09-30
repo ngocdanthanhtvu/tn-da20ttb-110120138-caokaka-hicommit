@@ -568,6 +568,42 @@ const deleteMemberFromCourse = async (req, res) => {
     }
 }
 
+const approveMemberToCourse = async (req, res) => {
+    const { id } = req.params;
+    const { email } = req.body;
+
+    try {
+        const userCourse = await UserCourse.findOne({
+            where: {
+                course_id: id,
+                email
+            }
+        });
+
+        if (!userCourse) {
+            return res.status(404).json({
+                message: 'Không tìm thấy yêu cầu tham gia'
+            });
+        }
+
+        if (userCourse.status !== 'INACTIVE') {
+            return res.status(409).json({
+                message: 'Thành viên không ở trạng thái chờ duyệt'
+            });
+        }
+
+        userCourse.status = 'ACTIVE';
+        await userCourse.save();
+
+        return res.status(200).json({
+            message: 'Đã chấp nhận thành viên',
+            member: userCourse
+        });
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
 const updateUnits = async (req, res) => {
     const { id } = req.params;
     const { units } = req.body;
@@ -762,6 +798,7 @@ module.exports = {
     addMemberToCourse,
     addMultipleMembersToCourse,
     deleteMemberFromCourse,
+    approveMemberToCourse,
     updateUnits,
     updateKey,
     togglePublishCourse,
