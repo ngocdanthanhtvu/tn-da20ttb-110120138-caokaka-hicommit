@@ -26,7 +26,7 @@ const { createUnit, getUnits, updateUnitById, deleteUnitById } = require('../con
 
 const { getCourseAnalysis, analysisSubmissionOfCourse, getProblemAnalysisOfCourse } = require('../controllers/analysis');
 
-router.get('/list', getCourses);
+router.get('/list', authMiddleware.optionalAuthenticate, getCourses);
 router.get('/created', authMiddleware.authenticate, getMyCourses);
 router.get('/joined', authMiddleware.authenticate, getJoinedCourses);
 router.get('/admin/:id', authMiddleware.authenticate, courseMiddleware.canManageCourse, getCourseByIDForAdmin);

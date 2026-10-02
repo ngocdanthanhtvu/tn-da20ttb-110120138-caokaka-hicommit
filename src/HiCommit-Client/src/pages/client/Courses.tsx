@@ -359,11 +359,29 @@ function Courses() {
                                                                     </div>
                                                                 </div>
                                                                 <div className="mt-5 flex gap-2">
-                                                                    <Link to={`/course/${course.slug || course.id}`} className="flex-1">
-                                                                        <Button className="w-full">
-                                                                            Tham gia
-                                                                        </Button>
-                                                                    </Link>
+                                                                    {
+                                                                        course?.membershipStatus === "ACTIVE" ? (
+                                                                            <Link to={`/course/${course.slug || course.id}`} className="flex-1">
+                                                                                <Button className="w-full" variant="secondary">
+                                                                                    Tiếp tục khoá học
+                                                                                </Button>
+                                                                            </Link>
+                                                                        ) : course?.membershipStatus === "INACTIVE" ? (
+                                                                            <Button className="flex-1" disabled>
+                                                                                Đang chờ duyệt
+                                                                            </Button>
+                                                                        ) : course?.membershipStatus === "BANNED" ? (
+                                                                            <Button className="flex-1" disabled>
+                                                                                Không thể tham gia
+                                                                            </Button>
+                                                                        ) : (
+                                                                            <Link to={`/course/${course.slug || course.id}`} className="flex-1">
+                                                                                <Button className="w-full">
+                                                                                    Tham gia
+                                                                                </Button>
+                                                                            </Link>
+                                                                        )
+                                                                    }
                                                                     <DropdownMenu>
                                                                         <DropdownMenuTrigger>
                                                                             <Button size="icon" variant="secondary">

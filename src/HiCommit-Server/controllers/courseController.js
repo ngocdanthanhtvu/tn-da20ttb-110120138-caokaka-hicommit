@@ -61,9 +61,33 @@ const getCourses = async (req, res) => {
             order: [['created_at', 'DESC']]
         });
 
+        let membershipByCourseId = new Map();
+
+        if (req.user) {
+            const userCourses = await UserCourse.findAll({
+                where: {
+                    email: req.user.email,
+                    course_id: courses.map(course => course.id)
+                },
+                attributes: ['course_id', 'status']
+            });
+
+            membershipByCourseId = new Map(
+                userCourses.map(userCourse => [
+                    userCourse.course_id,
+                    userCourse.status
+                ])
+            );
+        }
+
         // Đếm số bài tập trong từng khoá học
         for (let i = 0; i < courses.length; i++) {
             const course = courses[i];
+
+            if (req.user) {
+                course.dataValues.membershipStatus =
+                    membershipByCourseId.get(course.id) ?? null;
+            }
             const unitIds = course.units || [];
             const units = await Unit.findAll({
                 where: {

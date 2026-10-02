@@ -34,6 +34,33 @@ exports.authenticate = async (req, res, next) => {
     }
 };
 
+exports.optionalAuthenticate = async (req, res, next) => {
+    try {
+        const token = req.cookies.token;
+
+        if (!token) {
+            return next();
+        }
+
+        const decodedToken = jwt.verify(token, process.env.SECRET_KEY);
+        const user = await User.findByPk(decodedToken.id);
+
+        if (!user) {
+            return next();
+        }
+
+        delete user.dataValues.uid;
+        user.dataValues.favourite_post = JSON.parse(user.dataValues.favourite_post);
+        user.dataValues.favourite_course = JSON.parse(user.dataValues.favourite_course);
+        user.dataValues.favourite_problem = JSON.parse(user.dataValues.favourite_problem);
+
+        req.user = user;
+        next();
+    } catch (error) {
+        next();
+    }
+};
+
 // Middleware để kiểm tra quyền truy cập role === "ADMIN"
 exports.isAdmin = (req, res, next) => {
     try {
