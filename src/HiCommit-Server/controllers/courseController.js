@@ -56,7 +56,7 @@ const getCourses = async (req, res) => {
                 publish: true
             },
             attributes: {
-                exclude: ['join_key']
+                exclude: ['join_key', 'members']
             },
             order: [['created_at', 'DESC']]
         });
