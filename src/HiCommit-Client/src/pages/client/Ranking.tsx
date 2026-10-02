@@ -139,14 +139,18 @@ function Ranking() {
     }, [contest_id]);
 
     useEffect(() => {
-        socket.on('new_submission', () => {
+        if (!socket) return;
+
+        const handleNewSubmission = () => {
             fetchData();
-        });
+        };
+
+        socket.on('new_submission', handleNewSubmission);
 
         return () => {
-            socket.off('new_submission');
+            socket.off('new_submission', handleNewSubmission);
         };
-    }, []);
+    }, [socket]);
 
     return (
         <div className="Ranking w-full">

@@ -55,15 +55,19 @@ function SubmissionHistory(props: any) {
     }
 
     useEffect(() => {
-        socket.on('new_submission', () => {
+        if (!socket) return;
+
+        const handleNewSubmission = () => {
             setStatusState(null);
             handleGetMySubmissons();
-        });
+        };
+
+        socket.on('new_submission', handleNewSubmission);
 
         return () => {
-            socket.off('new_submission');
+            socket.off('new_submission', handleNewSubmission);
         };
-    }, []);
+    }, [socket]);
 
     useEffect(() => {
         handleGetMySubmissons();
