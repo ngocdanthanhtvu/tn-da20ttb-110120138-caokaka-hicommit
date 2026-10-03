@@ -39,6 +39,13 @@ const UserCourse = sequelize.define('UserCourse', {
     paranoid: true,
     timestamps: true,
     deletedAt: 'deletedAt',
+    indexes: [
+        {
+            unique: true,
+            fields: ['course_id', 'email'],
+            name: 'usercourses_course_email_unique'
+        }
+    ]
 });
 
 UserCourse.belongsTo(Course, { foreignKey: 'course_id' });

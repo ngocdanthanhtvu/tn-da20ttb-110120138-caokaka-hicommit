@@ -508,23 +508,36 @@ const addMemberToCourse = async (req, res) => {
         const userCourse = await UserCourse.findOne({
             where: {
                 course_id: id,
-                email: email
-            }
+                email
+            },
+            paranoid: false,
+            order: [['createdAt', 'DESC']]
         });
 
         if (userCourse) {
-            return res.status(404).json({ message: 'Người dùng đã tham gia khoá học này' });
+            if (userCourse.deletedAt) {
+                await userCourse.restore();
+                userCourse.status = 'ACTIVE';
+                await userCourse.save();
+
+                return res.status(200).json(userCourse);
+            }
+
+            return res.status(409).json({
+                message: 'Người dùng đã tham gia khoá học này'
+            });
         }
+
         const newUserCourse = await UserCourse.create({
             course_id: id,
-            email: email,
+            email,
             status: 'ACTIVE'
         });
 
-        res.status(200).json(newUserCourse);
+        return res.status(200).json(newUserCourse);
 
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 }
 
@@ -534,37 +547,52 @@ const addMultipleMembersToCourse = async (req, res) => {
 
     try {
         const course = await Course.findByPk(id);
+
         if (!course) {
             return res.status(404).json({ message: 'Khoá học không tồn tại' });
         }
 
-        // Kiểm tra và lọc ra các email chưa tồn tại trong khóa học
-        const existingUsers = await UserCourse.findAll({
-            where: {
+        if (!Array.isArray(emails)) {
+            return res.status(400).json({ message: 'Danh sách email không hợp lệ' });
+        }
+
+        const uniqueEmails = [...new Set(emails)];
+        const addedUserCourses = [];
+
+        for (const email of uniqueEmails) {
+            const userCourse = await UserCourse.findOne({
+                where: {
+                    course_id: id,
+                    email
+                },
+                paranoid: false,
+                order: [['createdAt', 'DESC']]
+            });
+
+            if (userCourse) {
+                if (userCourse.deletedAt) {
+                    await userCourse.restore();
+                    userCourse.status = 'ACTIVE';
+                    await userCourse.save();
+                    addedUserCourses.push(userCourse);
+                }
+
+                continue;
+            }
+
+            const newUserCourse = await UserCourse.create({
                 course_id: id,
-                email: emails
-            },
-            attributes: ['email']
-        });
+                email,
+                status: 'ACTIVE'
+            });
 
-        const existingEmails = existingUsers.map(user => user.email);
-        const newEmails = emails.filter(email => !existingEmails.includes(email));
+            addedUserCourses.push(newUserCourse);
+        }
 
-        // Tạo bản ghi mới chỉ cho các email chưa tồn tại
-        const newUserCourses = await UserCourse.bulkCreate(newEmails.map(email => ({
-            course_id: id,
-            email: email,
-            status: 'ACTIVE'
-        })));
-
-        // Thông báo về số lượng bản ghi đã được thêm và số lượng bị bỏ qua
-        const addedCount = newUserCourses.length;
-        const skippedCount = emails.length - addedCount;
-
-        res.status(200).json(newUserCourses);
+        return res.status(200).json(addedUserCourses);
 
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 }
 
