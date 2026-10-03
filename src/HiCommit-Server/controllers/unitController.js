@@ -66,7 +66,14 @@ const getUnitById = async (req, res) => {
 const updateUnitById = async (req, res) => {
     try {
         const { name, children } = req.body;
-        const unit = await Unit.findByPk(req.params.unit_id);
+        const { course_id, unit_id } = req.params;
+
+        const unit = await Unit.findOne({
+            where: {
+                id: unit_id,
+                course_id
+            }
+        });
 
         if (!unit) {
             return res.status(404).json({ error: 'Unit not found' });
@@ -93,7 +100,13 @@ const deleteUnitById = async (req, res) => {
     const transaction = await sequelize.transaction();
 
     try {
-        const unit = await Unit.findByPk(unit_id, { transaction });
+        const unit = await Unit.findOne({
+            where: {
+                id: unit_id,
+                course_id
+            },
+            transaction
+        });
 
         if (!unit) {
             await transaction.rollback();
