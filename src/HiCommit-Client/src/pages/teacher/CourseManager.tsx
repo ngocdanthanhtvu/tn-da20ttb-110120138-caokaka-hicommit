@@ -47,6 +47,17 @@ function CourseManager() {
     const [createdCourses, setCreatedCourses] = useState<any[]>([]);
     const [filteredCourses, setFilteredCourses] = useState<any[]>([]);
     const [searchKeyword, setSearchKeyword] = useState<string>("");
+    const [classFilter, setClassFilter] = useState<string>("all");
+    const [publishFilter, setPublishFilter] = useState<string>("all");
+    const [visibilityFilter, setVisibilityFilter] = useState<string>("all");
+
+    const classNames = Array.from(
+        new Set(
+            createdCourses
+                .map(course => course?.class_name)
+                .filter(Boolean)
+        )
+    ).sort();
 
     const handleGetCreatedCourse = async () => {
         try {
@@ -65,10 +76,40 @@ function CourseManager() {
 
     useEffect(() => {
         const filtered = createdCourses.filter((course) => {
-            return course.name.toLowerCase().includes(searchKeyword.toLowerCase());
+            const matchesSearch = course.name
+                .toLowerCase()
+                .includes(searchKeyword.toLowerCase());
+
+            const matchesClass =
+                classFilter === "all" ||
+                course?.class_name === classFilter;
+
+            const matchesPublish =
+                publishFilter === "all" ||
+                (publishFilter === "published" && course?.publish === true) ||
+                (publishFilter === "unpublished" && course?.publish === false);
+
+            const matchesVisibility =
+                visibilityFilter === "all" ||
+                (visibilityFilter === "public" && course?.public === true) ||
+                (visibilityFilter === "private" && course?.public === false);
+
+            return (
+                matchesSearch &&
+                matchesClass &&
+                matchesPublish &&
+                matchesVisibility
+            );
         });
+
         setFilteredCourses(filtered);
-    }, [searchKeyword, createdCourses]);
+    }, [
+        searchKeyword,
+        createdCourses,
+        classFilter,
+        publishFilter,
+        visibilityFilter
+    ]);
 
     return (
         <div className="CourseManager p-7">
@@ -82,16 +123,44 @@ function CourseManager() {
                             <div className="flex gap-2 items-center">
                                 <h2 className="font-semibold text-lg">Tất cả khoá học</h2>
                                 <div className="flex gap-2">
-                                    <Badge variant="secondary" className="text-[11px] p-1 px-1.5 pl-2.5">
-                                        DA20TTB
-                                        <X className="w-4 h-4 ml-3 hover:bg-zinc-700 rounded-full p-[1px] duration-100 cursor-pointer" />
-                                    </Badge>
-                                    <Badge variant="secondary" className="text-[11px] p-1 px-1.5 pl-2.5">
-                                        C++
-                                        <X className="w-4 h-4 ml-3 hover:bg-zinc-700 rounded-full p-[1px] duration-100 cursor-pointer" />
-                                    </Badge>
+                                    {classFilter !== "all" && (
+                                        <Badge variant="secondary" className="text-[11px] p-1 px-1.5 pl-2.5">
+                                            Lớp: {classFilter}
+                                            <X
+                                                className="w-4 h-4 ml-3 hover:bg-zinc-700 rounded-full p-[1px] duration-100 cursor-pointer"
+                                                onClick={() => setClassFilter("all")}
+                                            />
+                                        </Badge>
+                                    )}
+
+                                    {publishFilter !== "all" && (
+                                        <Badge variant="secondary" className="text-[11px] p-1 px-1.5 pl-2.5">
+                                            {publishFilter === "published"
+                                                ? "Đã công bố"
+                                                : "Chưa công bố"}
+                                            <X
+                                                className="w-4 h-4 ml-3 hover:bg-zinc-700 rounded-full p-[1px] duration-100 cursor-pointer"
+                                                onClick={() => setPublishFilter("all")}
+                                            />
+                                        </Badge>
+                                    )}
+
+                                    {visibilityFilter !== "all" && (
+                                        <Badge variant="secondary" className="text-[11px] p-1 px-1.5 pl-2.5">
+                                            {visibilityFilter === "public"
+                                                ? "Công khai"
+                                                : "Riêng tư"}
+                                            <X
+                                                className="w-4 h-4 ml-3 hover:bg-zinc-700 rounded-full p-[1px] duration-100 cursor-pointer"
+                                                onClick={() => setVisibilityFilter("all")}
+                                            />
+                                        </Badge>
+                                    )}
                                 </div>
-                                <Badge className="px-1.5 min-w-[22px] flex justify-center">{createdCourses.length}</Badge>
+
+                                <Badge className="px-1.5 min-w-[22px] flex justify-center">
+                                    {filteredCourses.length}
+                                </Badge>
                                 <TooltipProvider delayDuration={200}>
                                     <Tooltip>
                                         <Dialog>
@@ -110,54 +179,81 @@ function CourseManager() {
                                                 </DialogHeader>
                                                 <DialogDescription className="flex flex-col gap-4">
                                                     <div className="flex flex-col gap-1.5">
-                                                        <span>Ngôn ngữ lập trình</span>
-                                                        <Select defaultValue="all">
-                                                            <SelectTrigger className="bg-secondary" >
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="all">Tất cả</SelectItem>
-                                                                <SelectItem value="DA20TTB">C</SelectItem>
-                                                                <SelectItem value="DA21TTB">C++</SelectItem>
-                                                                <SelectItem value="DA21TTB">Java</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div className="flex flex-col gap-1.5">
                                                         <span>Lớp học</span>
-                                                        <Select defaultValue="all">
+                                                        <Select
+                                                            value={classFilter}
+                                                            onValueChange={setClassFilter}
+                                                        >
                                                             <SelectTrigger className="bg-secondary">
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="all">Tất cả</SelectItem>
-                                                                <SelectItem value="DA20TTB">DA20TTB</SelectItem>
-                                                                <SelectItem value="DA21TTB">DA21TTB</SelectItem>
+                                                                {classNames.map((className) => (
+                                                                    <SelectItem
+                                                                        key={className as string}
+                                                                        value={className as string}
+                                                                    >
+                                                                        {className as string}
+                                                                    </SelectItem>
+                                                                ))}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
+
                                                     <div className="flex flex-col gap-1.5">
-                                                        <span>Trạng thái khoá học</span>
-                                                        <Select defaultValue="all">
+                                                        <span>Trạng thái công bố</span>
+                                                        <Select
+                                                            value={publishFilter}
+                                                            onValueChange={setPublishFilter}
+                                                        >
                                                             <SelectTrigger className="bg-secondary">
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="all">Tất cả</SelectItem>
-                                                                <SelectItem value="DA20TTB">Chưa kết thúc</SelectItem>
-                                                                <SelectItem value="DA21TTB">Đã kết thúc</SelectItem>
+                                                                <SelectItem value="published">Đã công bố</SelectItem>
+                                                                <SelectItem value="unpublished">Chưa công bố</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <span>Phạm vi hiển thị</span>
+                                                        <Select
+                                                            value={visibilityFilter}
+                                                            onValueChange={setVisibilityFilter}
+                                                        >
+                                                            <SelectTrigger className="bg-secondary">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="all">Tất cả</SelectItem>
+                                                                <SelectItem value="public">Công khai</SelectItem>
+                                                                <SelectItem value="private">Riêng tư</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
                                                 </DialogDescription>
                                                 <DialogFooter className="mt-3">
                                                     <div className="flex gap-2.5">
+                                                        <Button
+                                                            type="button"
+                                                            variant="secondary"
+                                                            onClick={() => {
+                                                                setClassFilter("all");
+                                                                setPublishFilter("all");
+                                                                setVisibilityFilter("all");
+                                                            }}
+                                                        >
+                                                            Xóa bộ lọc
+                                                        </Button>
+
                                                         <DialogClose asChild>
-                                                            <Button type="button" variant="secondary">
+                                                            <Button type="button">
                                                                 Đóng
                                                             </Button>
                                                         </DialogClose>
-                                                        <Button>Lọc</Button>
                                                     </div>
                                                 </DialogFooter>
                                             </DialogContent>
@@ -236,13 +332,32 @@ function CourseManager() {
                                 }
                             </div>
                             :
-                            <div className="flex flex-col items-center justify-center w-full mt-4">
-                                <span className="">
-                                    Bạn chưa tạo khoá học nào. <Link to="create" className="text-green-500 font-bold">
-                                        Tạo ngay<MoveRight className="w-5 h-5 inline ml-2" />
-                                    </Link>
-                                </span>
-                            </div>
+                            createdCourses.length === 0 ?
+                                <div className="flex flex-col items-center justify-center w-full mt-4">
+                                    <span className="">
+                                        Bạn chưa tạo khoá học nào. <Link to="create" className="text-green-500 font-bold">
+                                            Tạo ngay<MoveRight className="w-5 h-5 inline ml-2" />
+                                        </Link>
+                                    </span>
+                                </div>
+                            :
+                                <div className="flex flex-col items-center justify-center gap-3 w-full mt-4">
+                                    <span className="text-muted-foreground">
+                                        Không có khoá học phù hợp với tìm kiếm hoặc bộ lọc hiện tại.
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={() => {
+                                            setSearchKeyword("");
+                                            setClassFilter("all");
+                                            setPublishFilter("all");
+                                            setVisibilityFilter("all");
+                                        }}
+                                    >
+                                        Xóa tìm kiếm và bộ lọc
+                                    </Button>
+                                </div>
                     }
                 </div>
             </div>
