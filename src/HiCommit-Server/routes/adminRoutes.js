@@ -47,7 +47,7 @@ router.delete('/posts/:id', authMiddleware.authenticate, authMiddleware.isAdmin,
 
 // PROBLEMS
 router.get('/problems/list', authMiddleware.authenticate, authMiddleware.isAdmin, getProblemsForAdmin);
-router.get('/problems/:id/check-language', authMiddleware.authenticate, checkAvailableLanguageChangeByProblemID);
+router.get('/problems/:id/check-language', authMiddleware.authenticate, authMiddleware.isAdmin, checkAvailableLanguageChangeByProblemID);
 router.put('/problems/:id/level', authMiddleware.authenticate, authMiddleware.isAdmin, updateLevel);
 router.put('/problems/:id/update', authMiddleware.authenticate, authMiddleware.isAdmin, updateProblemForAdmin);
 
