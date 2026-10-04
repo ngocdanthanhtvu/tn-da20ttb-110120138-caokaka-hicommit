@@ -983,27 +983,41 @@ const deleteProblemInContest = async (req, res) => {
 }
 
 const deleteContestByID = async (req, res) => {
+    const transaction = await sequelize.transaction();
+
     try {
         const { id } = req.params;
 
         const contest = await Contest.findOne({
             where: {
                 id
-            }
+            },
+            transaction
         });
 
         if (!contest) {
+            await transaction.rollback();
             return res.status(404).json({
                 message: 'Contest not found'
             });
         }
 
-        await contest.destroy();
+        await UserContest.destroy({
+            where: {
+                contest_id: id
+            },
+            transaction
+        });
+
+        await contest.destroy({ transaction });
+
+        await transaction.commit();
 
         return res.status(200).json({
             message: 'Contest deleted'
         });
     } catch (error) {
+        await transaction.rollback();
         console.log(error);
         return res.status(500).json({
             message: 'Internal Server Error'
