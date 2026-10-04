@@ -75,7 +75,10 @@ function Navbar() {
                                     }
                                 </Tooltip>
                             </TooltipProvider>
-                            <TooltipProvider delayDuration={100}>
+                            {
+                                loginContext.user.role === "STUDENT" &&
+                                (
+                                    <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger>
                                         <Link className={`flex rounded-lg p-2 px-4 ${location.pathname.startsWith('/courses') ? 'bg-zinc-200 dark:bg-zinc-800' : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'}`} to="courses">
@@ -103,7 +106,9 @@ function Navbar() {
                                         </TooltipContent>
                                     }
                                 </Tooltip>
-                            </TooltipProvider>
+                                    </TooltipProvider>
+                                )
+                            }
                             <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger>
@@ -252,12 +257,12 @@ function Navbar() {
                         </div>
                     </div>
                     {
-                        loginContext.user.role !== "STUDENT" &&
+                        loginContext.user.role === "TEACHER" &&
                         <div className="flex flex-col gap-3">
                             <div className='flex gap-3 items-center'>
                                 {
                                     expanded &&
-                                    <span className="text-[12px] font-medium opacity-50">Dành cho giáo viên</span>
+                                    <span className="text-[12px] font-medium opacity-50">Giảng dạy</span>
                                 }
                                 <Separator className='flex-1' />
                             </div>
@@ -279,14 +284,14 @@ function Navbar() {
                                                     }}
                                                     style={{ whiteSpace: "nowrap" }}
                                                 >
-                                                    {expanded && "Quản lý khoá học"}
+                                                    {expanded && "Khóa học của tôi"}
                                                 </motion.span>
                                             </Link>
                                         </TooltipTrigger>
                                         {
                                             !expanded &&
                                             <TooltipContent side="right">
-                                                <p>Quản lý khoá học</p>
+                                                <p>Khóa học của tôi</p>
                                             </TooltipContent>
                                         }
                                     </Tooltip>
