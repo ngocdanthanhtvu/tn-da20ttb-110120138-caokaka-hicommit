@@ -354,7 +354,7 @@ function Courses() {
                                                                             {course?.problem_count} bài tập
                                                                         </Badge>
                                                                         <Badge variant="secondary" className="text-[11.5px] p-1 px-3">
-                                                                            <UsersRound className="h-3 w-3 mr-2" />{course?.members?.length || 123}
+                                                                            <UsersRound className="h-3 w-3 mr-2" />{course?.member_count ?? 0}
                                                                         </Badge>
                                                                     </div>
                                                                 </div>
@@ -515,7 +515,7 @@ function Courses() {
                                                                         {course?.problem_count} bài tập
                                                                     </Badge>
                                                                     <Badge variant="secondary" className="text-[11.5px] p-1 px-3">
-                                                                        <UsersRound className="h-3 w-3 mr-2" />{course?.students || 123}
+                                                                        <UsersRound className="h-3 w-3 mr-2" />{course?.member_count ?? 0}
                                                                     </Badge>
                                                                 </div>
                                                             </div>

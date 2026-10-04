@@ -109,6 +109,15 @@ const getCourses = async (req, res) => {
             });
 
             course.dataValues.problem_count = problems.length;
+
+            const memberCount = await UserCourse.count({
+                where: {
+                    course_id: course.id,
+                    status: 'ACTIVE'
+                }
+            });
+
+            course.dataValues.member_count = memberCount;
         }
 
         res.status(200).json(courses);
@@ -217,6 +226,15 @@ const getJoinedCourses = async (req, res) => {
             });
 
             course.dataValues.problem_count = problems.length;
+
+            const memberCount = await UserCourse.count({
+                where: {
+                    course_id: course.id,
+                    status: 'ACTIVE'
+                }
+            });
+
+            course.dataValues.member_count = memberCount;
         }
 
         res.status(200).json(courses);
@@ -271,12 +289,20 @@ const getCourseByIdOrSlug = async (req, res) => {
             // Thêm thông tin các units vào đối tượng course
             course.dataValues.units = orderedUnits;
 
-            // Nếu có join_key thì trả về thông tin isPublic
-            if (course.join_key) {
-                course.dataValues.isPublic = false;
-            } else {
-                course.dataValues.isPublic = true;
-            }
+            // Trạng thái truy cập phải dựa trên trường public.
+            // join_key có thể vẫn được giữ lại khi tắt giới hạn quyền truy cập.
+            course.dataValues.isPublic = !!course.public;
+
+            // Số thành viên ACTIVE được phép hiển thị công khai.
+            // Danh sách chi tiết members vẫn chỉ trả cho người có quyền.
+            const memberCount = await UserCourse.count({
+                where: {
+                    course_id: course.id,
+                    status: 'ACTIVE'
+                }
+            });
+
+            course.dataValues.member_count = memberCount;
 
             const userCourse = await UserCourse.findOne({
                 where: {
@@ -353,10 +379,12 @@ const joinCourse = async (req, res) => {
             where: {
                 course_id: course.id,
                 email: req.user.email
-            }
+            },
+            paranoid: false,
+            order: [['createdAt', 'DESC']]
         });
 
-        if (userCourse) {
+        if (userCourse && !userCourse.deletedAt) {
             if (userCourse.status === 'ACTIVE') {
                 return res.status(400).json({
                     message: 'Bạn đã tham gia khoá học này'
@@ -382,10 +410,20 @@ const joinCourse = async (req, res) => {
             });
         }
 
+        const targetStatus = course.auto_join ? 'ACTIVE' : 'INACTIVE';
+
+        if (userCourse?.deletedAt) {
+            await userCourse.restore();
+            userCourse.status = targetStatus;
+            await userCourse.save();
+
+            return res.status(200).json(userCourse);
+        }
+
         const newUserCourse = await UserCourse.create({
             course_id: course.id,
             email: req.user.email,
-            status: course.auto_join ? 'ACTIVE' : 'INACTIVE'
+            status: targetStatus
         });
 
         return res.status(200).json(newUserCourse);

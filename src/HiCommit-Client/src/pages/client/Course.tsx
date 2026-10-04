@@ -256,15 +256,28 @@ function Course() {
                                             <TooltipProvider delayDuration={100}>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <DialogTrigger>
-                                                            <Badge className="text-green-600 dark:text-green-500 flex gap-1.5 border-primary px-2 py-0 rounded-md hover:bg-secondary cursor-pointer ml-2" variant="outline">
-                                                                <UsersRound className="w-3.5" />
-                                                                <span>{courseData?.members?.length}</span>
-                                                            </Badge>
-                                                        </DialogTrigger>
+                                                        {
+                                                            courseData?.isJoined ? (
+                                                                <DialogTrigger asChild>
+                                                                    <Badge className="text-green-600 dark:text-green-500 flex gap-1.5 border-primary px-2 py-0 rounded-md hover:bg-secondary cursor-pointer ml-2" variant="outline">
+                                                                        <UsersRound className="w-3.5" />
+                                                                        <span>{courseData?.member_count ?? 0}</span>
+                                                                    </Badge>
+                                                                </DialogTrigger>
+                                                            ) : (
+                                                                <Badge className="text-green-600 dark:text-green-500 flex gap-1.5 border-primary px-2 py-0 rounded-md ml-2" variant="outline">
+                                                                    <UsersRound className="w-3.5" />
+                                                                    <span>{courseData?.member_count ?? 0}</span>
+                                                                </Badge>
+                                                            )
+                                                        }
                                                     </TooltipTrigger>
                                                     <TooltipContent side="bottom">
-                                                        Đã tham gia
+                                                        {
+                                                            courseData?.isJoined
+                                                                ? "Xem danh sách tham gia"
+                                                                : "Số thành viên đã tham gia"
+                                                        }
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
@@ -273,7 +286,7 @@ function Course() {
                                                     <DialogTitle className="mb-2 flex items-center">
                                                         Danh sách tham gia
                                                         <Badge className="w-fit text-green-600 dark:text-green-500 flex gap-1.5 border-primary px-1.5 py-0 rounded-sm ml-2 translate-y-[1px]" variant="outline">
-                                                            <span>{courseData?.members?.length}</span>
+                                                            <span>{courseData?.member_count ?? 0}</span>
                                                         </Badge>
                                                     </DialogTitle>
                                                     <DialogDescription>
