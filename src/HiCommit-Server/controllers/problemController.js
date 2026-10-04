@@ -1128,12 +1128,14 @@ const updateProblemForAdmin = async (req, res) => {
         const { name, slug, tags, language, description, input, output, limit, examples, testcases, score, level } = req.body;
 
         if (!name || !slug || !tags || !language || !description || !input || !output || !examples || !testcases || !level || !score) {
+            await transaction.rollback();
             return res.status(400).json({ message: 'Please fill in all fields' });
         }
 
         const problem = await Problem.findByPk(req.params.id);
 
         if (!problem) {
+            await transaction.rollback();
             return res.status(404).json({ error: 'Problem not found' });
         }
 
