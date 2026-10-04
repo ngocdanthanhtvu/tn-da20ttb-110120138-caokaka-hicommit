@@ -505,7 +505,10 @@ const getCourseByIDForAdmin = async (req, res) => {
 
 const addMemberToCourse = async (req, res) => {
     const { id } = req.params;
-    const { email } = req.body;
+    const identifier =
+        typeof req.body.email === 'string'
+            ? req.body.email.trim()
+            : '';
 
     try {
         const course = await Course.findByPk(id);
@@ -514,10 +517,45 @@ const addMemberToCourse = async (req, res) => {
             return res.status(404).json({ message: 'Khoá học không tồn tại' });
         }
 
+        if (!identifier) {
+            return res.status(400).json({
+                message: 'Email hoặc tên người dùng không được để trống'
+            });
+        }
+
+        // Cho phép nhập email hoặc username.
+        // Nếu tìm thấy tài khoản, luôn chuẩn hoá membership về email thật.
+        let user = await User.findOne({
+            where: { email: identifier },
+            attributes: ['email']
+        });
+
+        if (!user) {
+            user = await User.findOne({
+                where: { username: identifier },
+                attributes: ['email']
+            });
+        }
+
+        let resolvedEmail = identifier;
+
+        if (user) {
+            resolvedEmail = user.email;
+        } else {
+            // Chỉ cho phép tạo membership chờ đăng nhập khi input là email.
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!emailPattern.test(identifier)) {
+                return res.status(404).json({
+                    message: 'Không tìm thấy người dùng với tên người dùng này'
+                });
+            }
+        }
+
         const userCourse = await UserCourse.findOne({
             where: {
                 course_id: id,
-                email
+                email: resolvedEmail
             },
             paranoid: false,
             order: [['createdAt', 'DESC']]
@@ -539,7 +577,7 @@ const addMemberToCourse = async (req, res) => {
 
         const newUserCourse = await UserCourse.create({
             course_id: id,
-            email,
+            email: resolvedEmail,
             status: 'ACTIVE'
         });
 
