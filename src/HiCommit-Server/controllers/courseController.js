@@ -150,6 +150,15 @@ const getMyCourses = async (req, res) => {
             });
 
             course.dataValues.problem_count = problems.length;
+
+            const memberCount = await UserCourse.count({
+                where: {
+                    course_id: course.id,
+                    status: 'ACTIVE'
+                }
+            });
+
+            course.dataValues.member_count = memberCount;
         }
 
         res.status(200).json(courses);

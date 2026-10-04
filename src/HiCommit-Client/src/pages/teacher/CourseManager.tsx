@@ -218,7 +218,7 @@ function CourseManager() {
                                                                 {course?.problem_count > 0 ? course?.problem_count : "Chưa có"} bài tập
                                                             </Badge>
                                                             <Badge variant="secondary" className="text-[11px] p-1 px-3">
-                                                                <UsersRound className="h-3 w-3 mr-2" />{course?.members?.length || 123}
+                                                                <UsersRound className="h-3 w-3 mr-2" />{course?.member_count ?? 0}
                                                             </Badge>
                                                             {
                                                                 course?.publish &&

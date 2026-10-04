@@ -107,7 +107,7 @@ const chartConfig = {
         color: "hsl(var(--chart-3))",
     },
     PASSED: {
-        label: "Hoàn thành: ",
+        label: "Lượt nộp đạt: ",
         color: "hsl(var(--chart-4))",
     },
 
@@ -542,12 +542,14 @@ function CourseStatistic() {
                                                 fill="url(#fillDesktop)"
                                                 fillOpacity={0.4}
                                                 stroke="#22c55e"
+                                                dot={{ r: 4 }}
+                                                activeDot={{ r: 6 }}
                                             />
                                         </AreaChart>
                                     </ChartContainer>
                                     <p className="text-sm ml-4 opacity-70">
                                         <Info className="size-[14px] inline mr-2 -translate-y-[1px]" />
-                                        Biểu đồ này thống kê số lượt nộp bài cần thiết để hoàn thành các bài tập (Hay mức độ khó của bài tập)
+                                        Biểu đồ thể hiện số lần thử trung bình đến lần nộp đạt đầu tiên của các sinh viên đã hoàn thành bài.
                                     </p>
                                 </div>
                             </div>
@@ -668,7 +670,7 @@ function CourseStatistic() {
                                             <div className="flex flex-col gap-5">
                                                 <div className="flex items-start flex-col gap-1">
                                                     <div className="w-full flex items-center justify-between">
-                                                        <span className="text-xs font-medium opacity-80">Hoàn thành</span>
+                                                        <span className="text-xs font-medium opacity-80">Lượt nộp đạt</span>
                                                         <span className="text-xs font-medium opacity-80">{(((countSubmissions.PASSED / countSubmissions.total) || 0) * 100).toFixed(1)}%</span>
                                                     </div>
                                                     <div className={`w-full h-2 rounded-[2px] bg-secondary/60`}>

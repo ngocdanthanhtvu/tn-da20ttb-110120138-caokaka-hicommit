@@ -9,7 +9,7 @@ const Post = require('../models/post');
 const { fn, col, where, literal, Op } = require('sequelize');
 const sequelize = require('../configs/database');
 
-const getActiveCourseUsernames = async (courseId) => {
+const getActiveCourseStudentUsernames = async (courseId) => {
     const memberships = await UserCourse.findAll({
         where: {
             course_id: courseId,
@@ -30,12 +30,72 @@ const getActiveCourseUsernames = async (courseId) => {
         where: {
             email: {
                 [Op.in]: emails
-            }
+            },
+            role: 'STUDENT',
+            status: 'ACTIVE'
         },
         attributes: ['username']
     });
 
     return users.map(user => user.username);
+};
+
+const getAverageAttemptsToFirstPass = async (
+    problemSlug,
+    usernames
+) => {
+    if (!Array.isArray(usernames) || usernames.length === 0) {
+        return null;
+    }
+
+    const submissions = await Submission.findAll({
+        where: {
+            problem_slug: problemSlug,
+            username: {
+                [Op.in]: usernames
+            }
+        },
+        attributes: ['id', 'username', 'status', 'createdAt'],
+        order: [
+            ['username', 'ASC'],
+            ['createdAt', 'ASC'],
+            ['id', 'ASC']
+        ]
+    });
+
+    const attemptsByUser = new Map();
+    const completedAttempts = [];
+
+    for (const submission of submissions) {
+        const username = submission.username;
+        const state = attemptsByUser.get(username) || {
+            attempts: 0,
+            completed: false
+        };
+
+        if (state.completed) {
+            continue;
+        }
+
+        state.attempts += 1;
+
+        if (submission.status === 'PASSED') {
+            state.completed = true;
+            completedAttempts.push(state.attempts);
+        }
+
+        attemptsByUser.set(username, state);
+    }
+
+    if (completedAttempts.length === 0) {
+        return null;
+    }
+
+    const average =
+        completedAttempts.reduce((sum, value) => sum + value, 0) /
+        completedAttempts.length;
+
+    return Number(average.toFixed(2));
 };
 
 // User(id, username, uid, email, role, status, avatar_url, favourite_post, favourite_course, favourite_problem, join_at)
@@ -319,7 +379,7 @@ const countSubmissions60daysAgo = async (req, res) => {
 
             if (canViewAll) {
                 const courseUsernames =
-                    await getActiveCourseUsernames(course.id);
+                    await getActiveCourseStudentUsernames(course.id);
 
                 submissionWhere.username = {
                     [Op.in]: courseUsernames
@@ -456,6 +516,9 @@ const getCourseAnalysis = async (req, res) => {
         }
 
         if (course) {
+            const courseUsernames =
+                await getActiveCourseStudentUsernames(course.id);
+
             const unitIds = course.units || [];
             const units = await Unit.findAll({
                 where: {
@@ -496,7 +559,10 @@ const getCourseAnalysis = async (req, res) => {
                             // Lấy số lượt nộp bài cho mỗi problem
                             const submissionCount = await Submission.count({
                                 where: {
-                                    problem_slug: problem.slug
+                                    problem_slug: problem.slug,
+                                    username: {
+                                        [Op.in]: courseUsernames
+                                    }
                                 }
                             });
                             problem.dataValues.submissionCount = submissionCount;
@@ -530,7 +596,10 @@ const getCourseAnalysis = async (req, res) => {
                             const firstPassedSubmission = await Submission.findOne({
                                 where: {
                                     problem_slug: problem.slug,
-                                    status: 'PASSED'
+                                    status: 'PASSED',
+                                    username: {
+                                        [Op.in]: courseUsernames
+                                    }
                                 },
                                 order: [['createdAt', 'ASC']],
                                 attributes: ['username', 'createdAt']
@@ -565,35 +634,14 @@ const getCourseAnalysis = async (req, res) => {
                                 problem.dataValues.firstPassedSubmission = null;
                             }
 
-                            // Đếm số lần nộp bài của toàn khoá học
-                            const coursePassedSubmission = await Submission.findOne({
-                                where: {
-                                    problem_slug: problem.slug,
-                                    status: 'PASSED'
-                                },
-                                order: [['createdAt', 'ASC']]
-                            });
-
-                            let courseAttemptsBeforePassed = 0;
-
-                            if (coursePassedSubmission) {
-                                courseAttemptsBeforePassed = await Submission.count({
-                                    where: {
-                                        problem_slug: problem.slug,
-                                        createdAt: {
-                                            [Op.lte]: coursePassedSubmission.createdAt
-                                        }
-                                    }
-                                });
-                            } else {
-                                courseAttemptsBeforePassed = await Submission.count({
-                                    where: {
-                                        problem_slug: problem.slug,
-                                    }
-                                });
-                            }
-
-                            problem.dataValues.courseAttemptsBeforePassed = courseAttemptsBeforePassed;
+                            // Trung bình số lần thử đến lần PASSED đầu tiên
+                            // của các STUDENT đã hoàn thành bài.
+                            // null = chưa có STUDENT nào hoàn thành.
+                            problem.dataValues.courseAttemptsBeforePassed =
+                                await getAverageAttemptsToFirstPass(
+                                    problem.slug,
+                                    courseUsernames
+                                );
 
                             // Đếm số lần nộp bài của người dùng hiện tại
                             const userPassedSubmission = await Submission.findOne({
@@ -661,7 +709,7 @@ const analysisSubmissionOfCourse = async (req, res) => {
         }
 
         if (course) {
-            const courseUsernames = await getActiveCourseUsernames(course.id);
+            const courseUsernames = await getActiveCourseStudentUsernames(course.id);
             const unitIds = course.units || [];
             const units = await Unit.findAll({
                 where: { id: unitIds },
@@ -809,7 +857,7 @@ const getProblemAnalysisOfCourse = async (req, res) => {
         }
 
         if (course) {
-            const courseUsernames = await getActiveCourseUsernames(course.id);
+            const courseUsernames = await getActiveCourseStudentUsernames(course.id);
             const unitIds = course.units || [];
             const units = await Unit.findAll({
                 where: {
@@ -932,44 +980,14 @@ const getProblemAnalysisOfCourse = async (req, res) => {
                                 problem.dataValues.firstPassedSubmission = null;
                             }
 
-                            // Đếm số lần nộp bài của toàn khoá học
-                            const coursePassedSubmission = await Submission.findOne({
-                                where: {
-                                    problem_slug: problem.slug,
-                                    username: {
-                                        [Op.in]: courseUsernames
-                                    },
-                                    status: 'PASSED'
-                                },
-                                order: [['createdAt', 'ASC']]
-                            });
-
-                            let courseAttemptsBeforePassed = 0;
-
-                            if (coursePassedSubmission) {
-                                courseAttemptsBeforePassed = await Submission.count({
-                                    where: {
-                                        problem_slug: problem.slug,
-                                        username: {
-                                            [Op.in]: courseUsernames
-                                        },
-                                        createdAt: {
-                                            [Op.lte]: coursePassedSubmission.createdAt
-                                        }
-                                    }
-                                });
-                            } else {
-                                courseAttemptsBeforePassed = await Submission.count({
-                                    where: {
-                                        problem_slug: problem.slug,
-                                        username: {
-                                            [Op.in]: courseUsernames
-                                        }
-                                    }
-                                });
-                            }
-
-                            problem.dataValues.courseAttemptsBeforePassed = courseAttemptsBeforePassed;
+                            // Trung bình số lần thử đến lần PASSED đầu tiên
+                            // của các STUDENT đã hoàn thành bài.
+                            // null = chưa có STUDENT nào hoàn thành.
+                            problem.dataValues.courseAttemptsBeforePassed =
+                                await getAverageAttemptsToFirstPass(
+                                    problem.slug,
+                                    courseUsernames
+                                );
 
                             // Lấy danh sách người dùng đã nộp bài và kết quả của họ
                             const submissions = await Submission.findAll({
