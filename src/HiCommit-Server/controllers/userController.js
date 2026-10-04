@@ -189,33 +189,71 @@ const toggleCourseFavourite = async (req, res) => {
     }
 };
 
+const hasAnotherActiveAdmin = async (userId) => {
+    const count = await User.count({
+        where: {
+            id: {
+                [Op.ne]: userId
+            },
+            role: 'ADMIN',
+            status: 'ACTIVE'
+        }
+    });
+
+    return count > 0;
+};
+
 const updateRole = async (req, res) => {
     try {
         const user = await User.findByPk(req.params.id);
-        if (user) {
-            await user.update({ role: req.body.role });
-            delete user.dataValues.uid;
-            res.status(200).json(user);
-        } else {
-            res.status(404).json({ message: 'User not found' });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
+
+        if (
+            user.role === 'ADMIN' &&
+            user.status === 'ACTIVE' &&
+            req.body.role !== 'ADMIN' &&
+            !(await hasAnotherActiveAdmin(user.id))
+        ) {
+            return res.status(409).json({
+                error: 'At least one active admin must remain'
+            });
+        }
+
+        await user.update({ role: req.body.role });
+        delete user.dataValues.uid;
+        return res.status(200).json(user);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 };
 
 const updateStatus = async (req, res) => {
     try {
         const user = await User.findByPk(req.params.id);
-        if (user) {
-            await user.update({ status: req.body.status });
-            delete user.dataValues.uid;
-            res.status(200).json(user);
-        } else {
-            res.status(404).json({ message: 'User not found' });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
+
+        if (
+            user.role === 'ADMIN' &&
+            user.status === 'ACTIVE' &&
+            req.body.status !== 'ACTIVE' &&
+            !(await hasAnotherActiveAdmin(user.id))
+        ) {
+            return res.status(409).json({
+                error: 'At least one active admin must remain'
+            });
+        }
+
+        await user.update({ status: req.body.status });
+        delete user.dataValues.uid;
+        return res.status(200).json(user);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 };
 
