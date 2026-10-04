@@ -10,7 +10,7 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 
-import { CornerDownRight, CalendarDays, UsersRound, GitMerge, TrendingUp, Copy, ChevronRight, MessageCircle, Share2, GripVertical, AreaChartIcon, PieChart, Info, KeyRound, EllipsisVertical, Settings, ScanEye, Gem, Users, Key, Plus, Activity, Pencil, ArrowUp, ArrowDown, Trash2, EyeOff, Eye, FileDown, FileUp, UserPlus, Link2, ArrowRight, FileJson, FileOutput, FileInput } from 'lucide-react';
+import { CornerDownRight, CalendarDays, UsersRound, GitMerge, TrendingUp, Copy, ChevronRight, MessageCircle, Share2, GripVertical, AreaChartIcon, PieChart, Info, KeyRound, EllipsisVertical, Settings, ScanEye, Users, Key, Plus, Activity, Pencil, ArrowUp, ArrowDown, Trash2, EyeOff, Eye, FileDown, FileUp, UserPlus, Link2, ArrowRight, FileJson, FileOutput, FileInput } from 'lucide-react';
 import { Avatar, AvatarImage } from "@radix-ui/react-avatar";
 import { Button } from "@/components/ui/button";
 
@@ -705,9 +705,6 @@ function CourseManagerByID() {
                                                     <TabsTrigger value="general" className="pr-6 data-[state=active]:bg-secondary w-full justify-start rounded-md">
                                                         <Settings className="w-4 h-4 mr-2" />Chung
                                                     </TabsTrigger>
-                                                    <TabsTrigger value="advance" className="pr-6 data-[state=active]:bg-secondary w-full justify-start rounded-md">
-                                                        <Gem className="w-4 h-4 mr-2" />Nâng cao
-                                                    </TabsTrigger>
                                                     <TabsTrigger value="access" className="pr-6 data-[state=active]:bg-secondary w-full justify-start rounded-md">
                                                         <ScanEye className="w-4 h-4 mr-2" />Quyền truy cập
                                                     </TabsTrigger>
@@ -807,52 +804,6 @@ function CourseManagerByID() {
                                                                     <Button variant="outline" onClick={() => handleCopyText(`${(import.meta as any).env.VITE_HICOMMIT_HOST}/course/${course?.slug ? course?.slug : course_id}`)}>
                                                                         Sao chép
                                                                     </Button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </TabsContent>
-                                                    <TabsContent value="advance" className="mt-0 min-h-[400px]">
-                                                        <div className="flex flex-col gap-4">
-                                                            <div className="flex justify-between gap-10 items-center">
-                                                                <Label className="flex-1 flex flex-col gap-1.5 cursor-pointer">
-                                                                    <h3 className="text-[16px]">Quyền chỉnh sửa khoá học</h3>
-                                                                    <p className="text-sm opacity-50 dark:font-light">Cho phép người quản trị có thể chỉnh sửa khoá học này hay không, mặc định chức năng này được bật</p>
-                                                                </Label>
-                                                                <Select defaultValue="allow">
-                                                                    <SelectTrigger className="w-[180px]">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="allow">Cho phép</SelectItem>
-                                                                        <SelectItem value="notallow">Không cho phép</SelectItem>
-                                                                        <SelectItem value="custom">Tuỳ chỉnh</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="flex flex-col gap-4 border p-4 pl-5 rounded-lg">
-                                                                <div className="flex justify-between gap-10 items-center">
-                                                                    <Label className="flex-1 flex flex-col gap-1 cursor-pointer italic">
-                                                                        <h3 className="text-sm">Thông tin khoá học</h3>
-                                                                    </Label>
-                                                                    <Switch className="scale-[80%]" />
-                                                                </div>
-                                                                <div className="flex justify-between gap-10 items-center">
-                                                                    <Label className="flex-1 flex flex-col gap-1 cursor-pointer italic">
-                                                                        <h3 className="text-sm">Các bài tập trong khoá học</h3>
-                                                                    </Label>
-                                                                    <Switch className="scale-[80%]" />
-                                                                </div>
-                                                                <div className="flex justify-between gap-10 items-center">
-                                                                    <Label className="flex-1 flex flex-col gap-1 cursor-pointer italic">
-                                                                        <h3 className="text-sm">Thành viên trong khoá học</h3>
-                                                                    </Label>
-                                                                    <Switch className="scale-[80%]" />
-                                                                </div>
-                                                                <div className="flex justify-between gap-10 items-center">
-                                                                    <Label className="flex-1 flex flex-col gap-1 cursor-pointer italic">
-                                                                        <h3 className="text-sm">Xoá khoá học</h3>
-                                                                    </Label>
-                                                                    <Switch className="scale-[80%]" />
                                                                 </div>
                                                             </div>
                                                         </div>
