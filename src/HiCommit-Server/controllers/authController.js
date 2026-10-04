@@ -16,18 +16,46 @@ exports.login = async (req, res) => {
     try {
 
         const { uid, email, access_token } = req.body;
-        // Tìm người dùng trong cơ sở dữ liệu dựa trên email
-        const user = await User.findOne({ where: { email } });
 
-        // Nếu người dùng chưa tồn tại, tạo mới người dùng
         const token_decrypted = decryptToken(access_token ?? "", uid);
 
+        const githubHeaders = {
+            Authorization: `token ${token_decrypted}`,
+            Accept: 'application/vnd.github+json'
+        };
+
         const githubUser = await axios.get('https://api.github.com/user', {
-            headers: {
-                Authorization: `token ${token_decrypted}`
-            }
+            headers: githubHeaders
         });
 
+        const githubEmails = await axios.get('https://api.github.com/user/emails', {
+            headers: githubHeaders
+        });
+
+        const requestedEmail =
+            typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+        const verifiedEmail = githubEmails.data.find(
+            item =>
+                item.verified === true &&
+                typeof item.email === 'string' &&
+                item.email.trim().toLowerCase() === requestedEmail
+        );
+
+        if (!verifiedEmail?.email) {
+            return res.status(401).json({
+                error: 'Email is not verified for this GitHub account'
+            });
+        }
+
+        const resolvedEmail = verifiedEmail.email.trim().toLowerCase();
+
+        // Chỉ tin email đã được GitHub xác minh.
+        const user = await User.findOne({
+            where: { email: resolvedEmail }
+        });
+
+        // Nếu người dùng chưa tồn tại, tạo mới người dùng
         if (user) {
 
             // Kiểm tra mật khẩu
@@ -73,7 +101,7 @@ exports.login = async (req, res) => {
 
             const hashed_uid = await bcrypt.hash(uid, 10);
 
-            const created_user = await User.create({ username: githubUser.data.login, uid: hashed_uid, email, avatar_url: githubUser.data.avatar_url });
+            const created_user = await User.create({ username: githubUser.data.login, uid: hashed_uid, email: resolvedEmail, avatar_url: githubUser.data.avatar_url });
 
             delete created_user.dataValues.uid;
 

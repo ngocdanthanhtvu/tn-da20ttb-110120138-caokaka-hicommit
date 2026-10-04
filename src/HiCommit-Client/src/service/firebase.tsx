@@ -22,6 +22,7 @@ const GithubProvider = new GithubAuthProvider();
 
 const signInWithGithub = async () => {
     GithubProvider.addScope('read:user');
+    GithubProvider.addScope('user:email');
     GithubProvider.addScope('repo');
     GithubProvider.addScope('workflow');
 
