@@ -19,6 +19,10 @@ exports.authenticate = async (req, res, next) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        if (user.status !== 'ACTIVE') {
+            return res.status(403).json({ error: 'Account is not active' });
+        }
+
         // xoá uid
         delete user.dataValues.uid;
         user.dataValues.favourite_post = JSON.parse(user.dataValues.favourite_post);
@@ -46,6 +50,10 @@ exports.optionalAuthenticate = async (req, res, next) => {
         const user = await User.findByPk(decodedToken.id);
 
         if (!user) {
+            return next();
+        }
+
+        if (user.status !== 'ACTIVE') {
             return next();
         }
 
