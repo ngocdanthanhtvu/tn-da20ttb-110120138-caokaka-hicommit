@@ -313,7 +313,15 @@ function CourseManagerByID() {
             addMultipleMembersToCourse(course_id as string, membersToAdd),
             {
                 loading: 'Đang thêm...',
-                success: 'Thêm thành viên thành công',
+                success: (data: any) => {
+                    const summary = data?.summary;
+
+                    if (!summary) {
+                        return 'Đã xử lý danh sách thành viên';
+                    }
+
+                    return `Đã thêm ${summary.added}, đã tồn tại ${summary.existing}, không hợp lệ ${summary.invalid}, trùng lặp ${summary.duplicates}`;
+                },
                 error: (err) => `${err.response.data.message}`,
             },
             {
@@ -327,6 +335,7 @@ function CourseManagerByID() {
                 }
             });
 
+        setMembersToAdd([]);
         handleGetCourseData();
     }
 
@@ -335,14 +344,26 @@ function CourseManagerByID() {
         if (file) {
             Papa.parse(file, {
                 complete: (results: any) => {
-                    const emails = results.data.slice(1).map((row: any) => row[0]).filter(Boolean);
-                    // Gọi API để thêm các email này vào khóa học
-                    const uniqueEmails = [...new Set(emails)];
-                    setMembersToAdd(uniqueEmails as string[]);
+                    const rows = results.data as any[][];
+                    const header = String(rows?.[0]?.[0] ?? '').trim().toLowerCase();
+
+                    if (header !== 'email') {
+                        setMembersToAdd([]);
+                        toast.error('File CSV phải có cột đầu tiên là Email');
+                        return;
+                    }
+
+                    const emails = rows
+                        .slice(1)
+                        .map((row: any) => String(row?.[0] ?? '').trim())
+                        .filter(Boolean);
+
+                    setMembersToAdd(emails);
+                    setIsOpenCSVUpload(true);
                 },
-                header: false
+                header: false,
+                skipEmptyLines: true
             });
-            setIsOpenCSVUpload(true);
         }
         // clear file input
         if (fileInputRef.current) {

@@ -603,14 +603,48 @@ const addMultipleMembersToCourse = async (req, res) => {
             return res.status(400).json({ message: 'Danh sách email không hợp lệ' });
         }
 
-        const uniqueEmails = [...new Set(emails)];
-        const addedUserCourses = [];
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const normalizedEmails = [];
+        let invalid = 0;
+        let duplicates = 0;
 
-        for (const email of uniqueEmails) {
+        for (const value of emails) {
+            if (typeof value !== 'string') {
+                invalid++;
+                continue;
+            }
+
+            const normalized = value.trim().toLowerCase();
+
+            if (!normalized || !emailPattern.test(normalized)) {
+                invalid++;
+                continue;
+            }
+
+            if (normalizedEmails.includes(normalized)) {
+                duplicates++;
+                continue;
+            }
+
+            normalizedEmails.push(normalized);
+        }
+
+        const addedUserCourses = [];
+        let existing = 0;
+
+        for (const normalizedEmail of normalizedEmails) {
+            // Nếu tài khoản đã tồn tại, dùng email chuẩn đang lưu trong User.
+            const user = await User.findOne({
+                where: { email: normalizedEmail },
+                attributes: ['email']
+            });
+
+            const resolvedEmail = user ? user.email : normalizedEmail;
+
             const userCourse = await UserCourse.findOne({
                 where: {
                     course_id: id,
-                    email
+                    email: resolvedEmail
                 },
                 paranoid: false,
                 order: [['createdAt', 'DESC']]
@@ -622,6 +656,8 @@ const addMultipleMembersToCourse = async (req, res) => {
                     userCourse.status = 'ACTIVE';
                     await userCourse.save();
                     addedUserCourses.push(userCourse);
+                } else {
+                    existing++;
                 }
 
                 continue;
@@ -629,14 +665,23 @@ const addMultipleMembersToCourse = async (req, res) => {
 
             const newUserCourse = await UserCourse.create({
                 course_id: id,
-                email,
+                email: resolvedEmail,
                 status: 'ACTIVE'
             });
 
             addedUserCourses.push(newUserCourse);
         }
 
-        return res.status(200).json(addedUserCourses);
+        return res.status(200).json({
+            addedUserCourses,
+            summary: {
+                requested: emails.length,
+                added: addedUserCourses.length,
+                existing,
+                invalid,
+                duplicates
+            }
+        });
 
     } catch (error) {
         return res.status(500).json({ error: error.message });
