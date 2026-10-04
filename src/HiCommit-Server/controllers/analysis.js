@@ -216,6 +216,7 @@ const getAnalysis = async (req, res) => {
             FAILED: submissions.filter(submission => submission.status === 'FAILED').length,
             ERROR: submissions.filter(submission => submission.status === 'ERROR').length,
             COMPILE_ERROR: submissions.filter(submission => submission.status === 'COMPILE_ERROR').length,
+            PENDING: submissions.filter(submission => submission.status === 'PENDING').length,
         }
 
         analysis['submissions'] = submissions_analysis;

@@ -78,6 +78,10 @@ const chartConfig = {
         label: "Lỗi biên dịch",
         color: "hsl(var(--chart-5))",
     },
+    PENDING: {
+        label: "Đang xử lý",
+        color: "#3b82f6",
+    },
 } satisfies ChartConfig;
 
 function Dashboard() {
@@ -139,6 +143,7 @@ function Dashboard() {
                 { status: "FAILED", quanlity: res.submissions.FAILED, fill: "#ef4444" },
                 { status: "ERROR", quanlity: res.submissions.ERROR, fill: "#fbbf24" },
                 { status: "COMPILE_ERROR", quanlity: res.submissions.COMPILE_ERROR, fill: "#d3d3d3" },
+                { status: "PENDING", quanlity: res.submissions.PENDING, fill: "#3b82f6" },
             ]
 
             setSubmissionChartData(newSubmissionChartData);
