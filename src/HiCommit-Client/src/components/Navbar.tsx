@@ -24,6 +24,12 @@ function Navbar() {
     const { expanded, setExpanded } = useClientUI();
     const loginContext = useLogin();
 
+    // Tạm ẩn các chức năng chưa sử dụng trong giai đoạn hiện tại.
+    // Giữ nguyên code để có thể bật lại sau.
+    const showHome = false;
+    const showContest = false;
+    const showForum = false;
+
     const toggleNav = () => {
         setExpanded(!expanded);
     };
@@ -46,7 +52,10 @@ function Navbar() {
                             </div>
                         } */}
                         <div className="flex flex-col gap-3 font-medium">
-                            <TooltipProvider delayDuration={100}>
+                            {
+                                showHome &&
+                                (
+                                    <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger>
                                         <Link className={`flex rounded-lg p-2 px-4 ${location.pathname === "/" ? 'bg-zinc-200 dark:bg-zinc-800' : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'}`} to="">
@@ -75,6 +84,8 @@ function Navbar() {
                                     }
                                 </Tooltip>
                             </TooltipProvider>
+                                )
+                            }
                             {
                                 loginContext.user.role === "STUDENT" &&
                                 (
@@ -138,7 +149,10 @@ function Navbar() {
                                     }
                                 </Tooltip>
                             </TooltipProvider>
-                            <TooltipProvider delayDuration={100}>
+                            {
+                                showContest &&
+                                (
+                                    <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger>
                                         <Link className={`flex rounded-lg p-2 px-4 ${location.pathname.startsWith('/contest') ? 'bg-zinc-200 dark:bg-zinc-800' : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'}`} to="contest">
@@ -167,6 +181,8 @@ function Navbar() {
                                     }
                                 </Tooltip>
                             </TooltipProvider>
+                                )
+                            }
                             {/* <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger>
@@ -225,7 +241,10 @@ function Navbar() {
                                     }
                                 </Tooltip>
                             </TooltipProvider> */}
-                            <TooltipProvider delayDuration={100}>
+                            {
+                                showForum &&
+                                (
+                                    <TooltipProvider delayDuration={100}>
                                 <Tooltip>
                                     <TooltipTrigger>
                                         <Link className={`flex rounded-lg p-2 px-4 ${location.pathname.startsWith('/forum') ? 'bg-zinc-200 dark:bg-zinc-800' : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'}`} to="forum">
@@ -254,6 +273,8 @@ function Navbar() {
                                     }
                                 </Tooltip>
                             </TooltipProvider>
+                                )
+                            }
                         </div>
                     </div>
                     {

@@ -4,9 +4,8 @@ import { useLogin } from "@/service/LoginContext";
 import Loader from "@/components/ui/loader";
 import { Footer } from "@/components/Footer";
 
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
-import HomePage from "@/pages/client/Home";
 import Chat from "@/pages/client/Chat";
 import { useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
@@ -83,7 +82,21 @@ function ClientLayout() {
                                 <div className="flex flex-col flex-1 bg-white dark:bg-zinc-950 h-full overflow-auto justify-between" ref={clientContentRef}>
                                     <div className="flex-1">
                                         <Routes>
-                                            <Route path="" element={<HomePage />} />
+                                            <Route
+                                                path=""
+                                                element={
+                                                    <Navigate
+                                                        to={
+                                                            loginContext.user.role === "ADMIN"
+                                                                ? "/admin"
+                                                                : loginContext.user.role === "TEACHER"
+                                                                    ? "/course-manager"
+                                                                    : "/courses"
+                                                        }
+                                                        replace
+                                                    />
+                                                }
+                                            />
                                             <Route path="message/*" element={<Chat />} />
                                             <Route path="contest" >
                                                 <Route path="" element={<Contests />} />
