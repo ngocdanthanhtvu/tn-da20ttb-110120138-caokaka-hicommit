@@ -25,6 +25,7 @@ const contestRoutes = require('./routes/contestRoutes');
 const discussionRoutes = require('./routes/discussionRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const geminiRoutes = require('./routes/geminiRoutes');
+const researchRoutes = require('./routes/researchRoutes');
 
 // Tăng giới hạn kích thước payload cho JSON
 app.use(bodyParser.json({ limit: '20mb' }));
@@ -69,6 +70,7 @@ app.use('/discussions', discussionRoutes);
 app.use('/submissions', submissionRoutes);
 app.use('/contests', contestRoutes);
 app.use('/gemini', geminiRoutes);
+app.use('/research', researchRoutes);
 
 app.use((err, req, res, next) => {
   if (err && err.status === 403 && err.message === 'Not allowed by CORS') {

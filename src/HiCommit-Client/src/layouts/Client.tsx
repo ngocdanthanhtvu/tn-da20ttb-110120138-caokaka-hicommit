@@ -35,6 +35,7 @@ import Profile from "@/pages/client/Profile";
 import ProblemAnalysis from "@/pages/client/ProblemAnalysis";
 import CourseAnalysis from "@/pages/client/CourseAnalysis";
 import CourseStatistic from "@/pages/teacher/CourseStatistic";
+import ResearchExport from "@/pages/teacher/ResearchExport";
 
 function ClientLayout() {
 
@@ -130,6 +131,7 @@ function ClientLayout() {
                                                 <Route path=":course_id">
                                                     <Route path="" element={<CourseManagerByID />} />
                                                     <Route path="statistic" element={<CourseStatistic />} />
+                                                    <Route path="research-export" element={<ResearchExport />} />
                                                     <Route path="edit" element={<EditCourse />} />
                                                     <Route path="problem/create" element={<CreateProblem />} />
                                                     <Route path="problem/:problem_id/edit" element={<EditProblem />} />

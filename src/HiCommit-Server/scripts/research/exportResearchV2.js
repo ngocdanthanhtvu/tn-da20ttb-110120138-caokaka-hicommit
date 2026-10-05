@@ -5,14 +5,12 @@ const path = require('path');
 const { QueryTypes } = require('sequelize');
 const sequelize = require('../../configs/database');
 
-const args = process.argv.slice(2);
-
-function getArg(name) {
+function getArg(args, name) {
     const index = args.indexOf(name);
     return index >= 0 ? args[index + 1] : null;
 }
 
-function hasArg(name) {
+function hasArg(args, name) {
     return args.includes(name);
 }
 
@@ -26,17 +24,17 @@ function decodeBase64(value) {
     }
 }
 
-async function main() {
-    const idsArg = getArg('--ids');
-    const problemArg = getArg('--problem');
-    const problemsArg = getArg('--problems');
-    const roleArg = getArg('--role');
-    const courseArg = getArg('--course');
-    const contestArg = getArg('--contest');
-    const contextArg = getArg('--context');
-    const fromArg = getArg('--from');
-    const toArg = getArg('--to');
-    const exportAll = hasArg('--all');
+async function main(args = process.argv.slice(2), options = {}) {
+    const idsArg = getArg(args, '--ids');
+    const problemArg = getArg(args, '--problem');
+    const problemsArg = getArg(args, '--problems');
+    const roleArg = getArg(args, '--role');
+    const courseArg = getArg(args, '--course');
+    const contestArg = getArg(args, '--contest');
+    const contextArg = getArg(args, '--context');
+    const fromArg = getArg(args, '--from');
+    const toArg = getArg(args, '--to');
+    const exportAll = hasArg(args, '--all');
 
     const hasAnyFilter =
         idsArg ||
@@ -50,7 +48,7 @@ async function main() {
         toArg;
 
     if (!hasAnyFilter && !exportAll) {
-        console.error(
+        throw new Error(
             [
                 'Usage: node exportResearchV2.js [filters]',
                 '',
@@ -69,7 +67,6 @@ async function main() {
                 'Multiple filters are combined with AND.'
             ].join('\n')
         );
-        process.exit(1);
     }
 
     if (problemArg && problemsArg) {
@@ -328,6 +325,46 @@ async function main() {
             type: QueryTypes.SELECT
         }
     );
+
+    if (options.previewOnly) {
+        return {
+            exporter_version: '2.0',
+            record_schema_version: '1.0',
+            attempts_exported: submissions.length,
+            filters: {
+                combine_with: 'AND',
+                all: exportAll,
+                ids: idsArg
+                    ? idsArg
+                        .split(',')
+                        .map(v => v.trim())
+                        .filter(Boolean)
+                    : null,
+                problems:
+                    problemValues.length > 0
+                        ? problemValues
+                        : null,
+                role,
+                course_id:
+                    courseArg
+                        ? courseArg.trim()
+                        : null,
+                contest_id:
+                    contestArg
+                        ? contestArg.trim()
+                        : null,
+                context,
+                from_utc:
+                    fromDate
+                        ? fromDate.toISOString()
+                        : null,
+                to_utc:
+                    toDate
+                        ? toDate.toISOString()
+                        : null
+            }
+        };
+    }
 
     const outputDir = path.resolve(
         __dirname,
@@ -681,14 +718,32 @@ async function main() {
     console.log(`Exported ${submissions.length} attempts`);
     console.log(`Output: ${outputPath}`);
     console.log(`Metadata: ${metaPath}`);
+
+    return {
+        attempts_exported: submissions.length,
+        outputPath,
+        metaPath,
+        metadata: exportMeta
+    };
 }
 
-main()
-    .catch(error => {
-        console.error('Research export failed:');
-        console.error(error);
-        process.exitCode = 1;
-    })
-    .finally(async () => {
-        await sequelize.close();
-    });
+async function preview(args) {
+    return main(args, { previewOnly: true });
+}
+
+module.exports = {
+    main,
+    preview
+};
+
+if (require.main === module) {
+    main()
+        .catch(error => {
+            console.error('Research export failed:');
+            console.error(error);
+            process.exitCode = 1;
+        })
+        .finally(async () => {
+            await sequelize.close();
+        });
+}

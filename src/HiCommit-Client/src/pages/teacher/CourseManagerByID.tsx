@@ -1075,7 +1075,7 @@ function CourseManagerByID() {
                         </Label>
                         <Switch checked={course?.publish} id="publish-course" onCheckedChange={() => handlePublishCourse()} />
                     </div>
-                    <div className="bg-zinc-100/30 dark:bg-zinc-900/30 border rounded-lg flex flex-col items-center">
+                    <div className="relative bg-zinc-100/30 dark:bg-zinc-900/30 border rounded-lg flex flex-col items-center">
                         <div className="flex justify-between items-start w-full pl-6 2xl:pl-7 pt-4 2xl:pt-5 pr-4">
                             <div className="flex flex-col">
                                 <h3 className="font-bold text-xl 2xl:text-2xl align-left">Thống kê</h3>
@@ -1145,6 +1145,30 @@ function CourseManagerByID() {
                             </AreaChart>
                         </ChartContainer>
                         <span className="absolute bottom-3 mt-2.5 text-xs 2xl:text-sm dark:font-light opacity-60"><Activity className="w-3 h-3 mr-2 2xl:w-4 2xl:h-4 inline -translate-y-[1px]" />Mức độ hoàn thành bài tập theo thời gian</span>
+                    </div>
+
+                    <div className="border rounded-lg p-5 bg-secondary/10 flex flex-col gap-3">
+                        <div className="flex justify-between items-start gap-4">
+                            <div className="flex gap-3 items-start">
+                                <FileJson className="size-5 text-primary mt-0.5 shrink-0" />
+                                <div className="flex flex-col gap-1">
+                                    <h3 className="font-semibold text-lg">
+                                        Dữ liệu nghiên cứu
+                                    </h3>
+                                    <p className="text-sm opacity-60 dark:font-light">
+                                        Xem trước và xuất dữ liệu hành vi lập trình của khóa học.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <Link
+                            to={`/course-manager/${course_id}/research-export`}
+                            className="text-sm text-primary w-fit"
+                        >
+                            Mở công cụ
+                            <ArrowRight className="size-4 inline -translate-y-[1px] ml-1" />
+                        </Link>
                     </div>
                 </div>
             </div>
