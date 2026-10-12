@@ -265,7 +265,7 @@ CREATE TABLE `submissions` (
   `updatedAt` datetime NOT NULL,
   `review` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT '[]',
   `commit` varchar(255) DEFAULT NULL,
-  `username` varchar(16) NOT NULL,
+  `username` varchar(200) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_vietnamese_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -331,7 +331,7 @@ CREATE TABLE `usercourses` (
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
   `id` varchar(16) NOT NULL,
-  `username` varchar(50) NOT NULL,
+  `username` varchar(200) NOT NULL,
   `uid` varchar(255) NOT NULL,
   `email` varchar(100) NOT NULL,
   `role` enum('ADMIN','STUDENT','TEACHER') NOT NULL DEFAULT 'STUDENT',

@@ -21,7 +21,7 @@ const Submission = sequelize.define('Submission', {
         allowNull: false
     },
     username: {
-        type: DataTypes.STRING(16),
+        type: DataTypes.STRING(200),
         allowNull: false
     },
     sha: {
