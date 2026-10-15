@@ -44,7 +44,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import createGitHubAPI from "@/service/githubService";
 import { useLogin } from "@/service/LoginContext";
 import Loader from "@/components/ui/loader";
@@ -69,6 +69,7 @@ function SubmitProblem() {
     const [selectedLanguage, setSelectedLanguage] = useState("c");
     const [code, setCode] = useState(old_code || "");
     const [loading, setLoading] = useState(false);
+    const submitting = useRef(false);
     const [commitMessage, setCommitMessage] = useState("Submit code at " + new Date().toLocaleString() + " by HiCommit");
 
     const [problem, setProblem] = useState<any>();
@@ -133,7 +134,9 @@ function SubmitProblem() {
 
     useEffect(() => {
         handleGetProblem();
-        handleCheckRepo();
+        void handleCheckRepo().catch(() => {
+            toast.error("Không thể kiểm tra GitHub. Vui lòng thử lại sau.");
+        });
     }, []);
 
     const targetRepo = "hicommit-problems";
@@ -142,26 +145,34 @@ function SubmitProblem() {
     const handleCheckRepo = async () => {
         setLoading(true);
         try {
-            const response = await githubAPI.getRepoInfo(loginContext?.user.username, targetRepo);
-            setLoading(false);
-        } catch (error) {
+            await githubAPI.getRepoInfo(loginContext?.user.login || loginContext?.user.username, targetRepo);
+        } catch (error: any) {
+            if (error?.response?.status !== 404) throw error;
             await githubAPI.createRepoFromTemplate();
-            console.log("Created repo from template");
+        } finally {
             setLoading(false);
         }
-    }
+    };
 
     const handleCheckBranch = async () => {
+        const owner = loginContext?.user.login || loginContext?.user.username;
         try {
-            const response = await githubAPI.getRepoBranchInfo(loginContext?.user.username, targetRepo, problem_id);
-            console.log(response);
-        } catch (error) {
-            await githubAPI.createBranchFromBranch(loginContext?.user.username, targetRepo, problem_id, templateLanguage);
-            console.log("Created branch from template");
+            await githubAPI.getRepoBranchInfo(owner, targetRepo, problem_id);
+        } catch (error: any) {
+            if (error?.response?.status !== 404) throw error;
+            try {
+                await githubAPI.createBranchFromBranch(owner, targetRepo, problem_id, templateLanguage);
+            } catch (createError: any) {
+                if (createError?.response?.status !== 422) throw createError;
+                // Another tab may have created this branch. Confirm it exists before continuing.
+                await githubAPI.getRepoBranchInfo(owner, targetRepo, problem_id);
+            }
         }
-    }
+    };
 
     const handleSubmit = async () => {
+        if (submitting.current) return;
+        submitting.current = true;
         setLoading(true);
 
         try {
@@ -182,7 +193,7 @@ function SubmitProblem() {
                 ),
                 {
                     loading: 'Đang nộp bài...',
-                    success: 'Nộp bài thành công',
+                    success: 'Đã gửi mã nguồn lên GitHub, đang chờ chấm bài',
                     error: 'Nộp bài không thành công, hãy thử lại'
                 },
                 {
@@ -218,6 +229,9 @@ function SubmitProblem() {
                 'Không thể hoàn tất gửi bài. Mã nguồn vẫn được giữ trong trình soạn thảo. Vui lòng kiểm tra lịch sử trước khi nộp lại.',
                 { id: 'submit-problem', duration: 7000 }
             );
+        } finally {
+            submitting.current = false;
+            setLoading(false);
         }
     };
 
@@ -476,7 +490,7 @@ public class Main {
                                             </Button>
                                         </DialogClose>
                                         <DialogClose asChild>
-                                            <Button onClick={() => handleSubmit()}>
+                                            <Button disabled={loading} onClick={() => handleSubmit()}>
                                                 Commit
                                             </Button>
                                         </DialogClose>

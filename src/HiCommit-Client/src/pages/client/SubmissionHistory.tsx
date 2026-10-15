@@ -57,6 +57,7 @@ function SubmissionHistory(props: any) {
 
         let disposed = false;
         let busy = false;
+        let stopped = false;
         let timer: ReturnType<typeof setTimeout> | undefined;
         const deadline = Date.now() + 120000;
         const finalStatuses = new Set([
@@ -75,7 +76,15 @@ function SubmissionHistory(props: any) {
             let keepChecking = false;
 
             try {
-                const data = await getMySubmissionsByProblemSlug(problem_id);
+                let requestTimer: ReturnType<typeof setTimeout> | undefined;
+                const data = await Promise.race([
+                    getMySubmissionsByProblemSlug(problem_id),
+                    new Promise<never>((_, reject) => {
+                        requestTimer = setTimeout(() => reject(new Error('History request timeout')), 15000);
+                    })
+                ]).finally(() => {
+                    if (requestTimer !== undefined) clearTimeout(requestTimer);
+                });
                 if (disposed) return;
                 if (!Array.isArray(data)) {
                     throw new Error('Unexpected submission history response');
@@ -96,7 +105,7 @@ function SubmissionHistory(props: any) {
                 const awaitingCommit =
                     pendingRequested && !!targetSha && !matchedFinal;
 
-                keepChecking = awaitingCommit || hasPending;
+                keepChecking = targetSha ? awaitingCommit : hasPending;
                 setStatusState(keepChecking ? 'PENDING' : null);
                 setTrackingMessage(
                     pendingRequested && !targetSha
@@ -117,6 +126,7 @@ function SubmissionHistory(props: any) {
                     if (Date.now() < deadline) {
                         timer = setTimeout(() => { void refresh(); }, 5000);
                     } else {
+                        stopped = true;
                         setStatusState(null);
                         setTrackingMessage(
                             'Chưa xác nhận được kết quả sau 2 phút. Bài có thể vẫn đang xử lý. Hãy kiểm tra lại hoặc xem GitHub Actions trước khi nộp lại.'
@@ -126,7 +136,7 @@ function SubmissionHistory(props: any) {
             }
         };
 
-        const handleUpdate = () => { void refresh(); };
+        const handleUpdate = () => { if (!stopped) void refresh(); };
         socket?.on('new_submission', handleUpdate);
         socket?.on('connect', handleUpdate);
         void refresh();

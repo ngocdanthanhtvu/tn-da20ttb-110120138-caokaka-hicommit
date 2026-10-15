@@ -1,8 +1,14 @@
 const GITHUB_OIDC_ISSUER = 'https://token.actions.githubusercontent.com';
 const GITHUB_OIDC_AUDIENCE = 'hicommit-backend';
 
-const TRUSTED_WORKFLOW_REF =
+// Accept only reviewed immutable workflow revisions. The legacy revision remains during rollout.
+const LEGACY_WORKFLOW_REF =
     'ngocdanthanhtvu/hicommit-runner/.github/workflows/c-runner.yml@35880c4dd87f02f5b6ca1aef8ee2560094c9dd47';
+const additionalRefs = require('../configs/trustedRunnerRefs.json');
+if (!Array.isArray(additionalRefs) || additionalRefs.some(ref =>
+    !/^ngocdanthanhtvu\/hicommit-runner\/\.github\/workflows\/c-runner\.yml@[a-f0-9]{40}$/.test(ref)
+)) throw new Error('Trusted runner references must use full immutable commit SHAs');
+const TRUSTED_WORKFLOW_REFS = new Set([LEGACY_WORKFLOW_REF, ...additionalRefs]);
 
 let josePromise;
 let remoteJwks;
@@ -68,11 +74,11 @@ exports.verifyGitHubOidc = async (req, res, next) => {
             audience: GITHUB_OIDC_AUDIENCE,
         });
 
-        if (payload.job_workflow_ref !== TRUSTED_WORKFLOW_REF) {
+        if (!TRUSTED_WORKFLOW_REFS.has(payload.job_workflow_ref)) {
             return res.status(403).json({ error: 'Untrusted GitHub workflow' });
         }
 
-        if (!claimsMatchCallback(payload, req.body)) {
+        if (req.params.slug !== req.body.problem || !claimsMatchCallback(payload, req.body)) {
             return res.status(403).json({
                 error: 'GitHub OIDC claims do not match callback payload',
             });
@@ -105,7 +111,7 @@ exports.verifyGitHubOidcForTestcases = async (req, res, next) => {
             audience: GITHUB_OIDC_AUDIENCE,
         });
 
-        if (payload.job_workflow_ref !== TRUSTED_WORKFLOW_REF) {
+        if (!TRUSTED_WORKFLOW_REFS.has(payload.job_workflow_ref)) {
             return res.status(403).json({ error: 'Untrusted GitHub workflow' });
         }
 

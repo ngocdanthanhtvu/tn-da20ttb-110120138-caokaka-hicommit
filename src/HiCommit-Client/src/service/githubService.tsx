@@ -5,6 +5,7 @@ const createGitHubAPI = (accessToken: any) => {
 
     const githubAPI = axios.create({
         baseURL: 'https://api.github.com',
+        timeout: 20000,
         headers: {
             Authorization: `token ${accessToken}`,
             Accept: 'application/vnd.github.v3+json',
@@ -97,7 +98,10 @@ const createGitHubAPI = (accessToken: any) => {
     // Hàm để commit một file mới hoặc cập nhật file hiện có
     const commitFile = async (owner: any, repo: any, branch: any, path: any, content: any, message: any) => {
         try {
-            const fileSha = await getFileSha(owner, repo, branch, path).catch(() => null); // Nếu file chưa tồn tại, bỏ qua lỗi
+            const fileSha = await getFileSha(owner, repo, branch, path).catch((error) => {
+                if (axios.isAxiosError(error) && error.response?.status === 404) return null;
+                throw error;
+            });
 
             const response = await githubAPI.put(`/repos/${owner}/${repo}/contents/${path}`, {
                 message,

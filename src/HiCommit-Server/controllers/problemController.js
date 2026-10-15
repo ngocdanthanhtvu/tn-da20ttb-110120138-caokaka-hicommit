@@ -6,16 +6,10 @@ const Problem = require('../models/problem');
 const Example = require('../models/example');
 const Testcase = require('../models/testcase');
 const Submission = require('../models/submission');
-const SubmissionCompileResult = require('../models/submissionCompileResult');
-const SubmissionErrorDetail = require('../models/submissionErrorDetail');
-const SubmissionTestResult = require('../models/submissionTestResult');
-const SubmissionProvenance = require('../models/submissionProvenance');
-const SubmissionSource = require('../models/submissionSource');
 const Contest = require('../models/contest');
 const UserContest = require('../models/user_contest');
 const { fn, col, where, literal, Op } = require('sequelize');
 const sequelize = require('../configs/database');
-const axios = require('axios');
 const crypto = require('crypto');
 const { getIO } = require('../socket');
 const { geminiChat } = require('../controllers/geminiController');
@@ -566,275 +560,21 @@ const getTestcasesBySlug = async (req, res) => {
 
 // Ghi kết quả
 const writeResultFromGitHub = async (req, res) => {
-
     try {
-        const {
-            problem,
-            actor,
-            job_name,
-            run_id,
-            run_attempt,
-            workflow_name,
-            execution_environment,
-            architecture,
-            runner_version,
-            schema_version,
-            testset_version,
-            sha,
-            status,
-            result,
-            pass_count,
-            total_count,
-            duration,
-            code,
-            compile_exit_code,
-            compile_duration_ms,
-            compiler,
-            compiler_version,
-            compile_command,
-            compile_stdout,
-            compile_stderr,
-            error_type,
-            error_stage
-        } = req.body;
-
-        if (!problem || !actor || !run_id || !sha || !status || !code) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        const saved = await require('../services/submissionCallback').storeCallback(req.body, req.params.slug);
+        if (saved.changed) {
+            // Notifications and optional review run after COMMIT; failure cannot undo accepted results.
+            try { io.emit('new_submission'); } catch (error) { console.error('Submission notification failed:', error.message); }
+            if (saved.created && process.env.ENABLE_AI_CODE_REVIEW === 'true') {
+                void getGeminiSuggestion(saved.code, saved.id);
+            }
         }
-
-        // Tính phiên bản nội dung của đặc tả bài toán
-        const problemRecord = await Problem.findOne({
-            where: { slug: problem },
-            attributes: [
-                'name',
-                'language',
-                'description',
-                'input',
-                'output',
-                'limit'
-            ]
-        });
-
-        if (!problemRecord) {
-            return res.status(404).json({ error: 'Problem not found' });
-        }
-
-        const problemData = problemRecord.toJSON();
-
-        const problemVersion = crypto
-            .createHash('sha256')
-            .update(JSON.stringify([
-                problemData.name,
-                problemData.language,
-                problemData.description,
-                problemData.input,
-                problemData.output,
-                problemData.limit ?? null
-            ]))
-            .digest('hex');
-
-        if (status === 'pending') {
-            // Xử lý khi status là pending
-
-            // Callback đã được xác thực bằng GitHub OIDC.
-            // Lỗi lấy metadata commit không được chặn việc lưu bài.
-            let commitMessage = `Bài nộp ${problem} (${sha.slice(0, 12)})`;
-
-            try {
-                const commitResponse = await axios.get(
-                    `https://api.github.com/repos/${actor}/hicommit-problems/commits/${sha}`,
-                    { timeout: 5000 }
-                );
-                const message = commitResponse.data?.commit?.message;
-                if (typeof message !== 'string' || !message.trim()) {
-                    throw new Error('Missing commit message');
-                }
-                commitMessage = message;
-            } catch (error) {
-                const headers = error.response?.headers || {};
-                console.warn('Commit metadata unavailable; saving OIDC-verified submission', {
-                    actor,
-                    run_id,
-                    sha,
-                    upstream_status: error.response?.status ?? null,
-                    error_code: error.code ?? null,
-                    remaining: headers['x-ratelimit-remaining'] ?? null,
-                    reset: headers['x-ratelimit-reset'] ?? null,
-                    retry_after: headers['retry-after'] ?? null
-                });
-            }
-
-            // Nếu commitMessage bắt đầu bằng [config] hoặc Initialize thì không xử lý
-            if (commitMessage.startsWith('[config]') || commitMessage.startsWith('Initialize')) {
-                return res.status(200).send('Config commit received');
-            }
-
-            let submission = await Submission.findByPk(run_id);
-
-            if (!submission) {
-                submission = await Submission.create({
-                    id: run_id,
-                    problem_slug: problem,
-                    username: actor,
-                    sha,
-                    run_id,
-                    code,
-                    status: status.toUpperCase(),
-                    commit: commitMessage
-                });
-
-                // Chỉ gọi AI review khi được bật rõ ràng bằng feature flag.
-                // Giai đoạn baseline mặc định tắt để không can thiệp hành vi debugging.
-                if (process.env.ENABLE_AI_CODE_REVIEW === 'true') {
-                    getGeminiSuggestion(code, submission.id);
-                }
-            }
-
-            // Lưu snapshot mã nguồn phục vụ phân tích và tái lập dữ liệu
-            const sourceBuffer = Buffer.from(code, 'base64');
-            const sourceText = sourceBuffer.toString('utf8');
-            const sourceLines = sourceText.length === 0
-                ? []
-                : sourceText.split(/\r\n|\r|\n/);
-
-            if (sourceLines.length > 0 && sourceLines[sourceLines.length - 1] === '') {
-                sourceLines.pop();
-            }
-
-            await SubmissionSource.upsert({
-                submission_id: submission.id,
-                path: 'main.c',
-                language: 'c',
-                encoding: 'utf-8',
-                content_base64: code,
-                sha256: crypto
-                    .createHash('sha256')
-                    .update(sourceBuffer)
-                    .digest('hex'),
-                size_bytes: sourceBuffer.length,
-                line_count: sourceLines.length
-            });
-
-            await SubmissionProvenance.upsert({
-                submission_id: submission.id,
-                schema_version: schema_version ?? '1.0',
-                github_run_id: String(run_id),
-                github_run_attempt: run_attempt != null
-                    ? Number(run_attempt)
-                    : 1,
-                commit_sha: sha,
-                workflow_name: workflow_name ?? null,
-                execution_environment: execution_environment ?? null,
-                architecture: architecture ?? null,
-                runner_version: runner_version ?? null,
-                problem_version: problemVersion,
-                testset_version: testset_version ?? null
-            });
-
-            io.emit('new_submission');
-
-            res.status(200).send('Result received');
-
-            return;
-        } else {
-
-            // Lấy ra submission từ database dựa vào run_id
-            const submission = await Submission.findByPk(run_id);
-
-            if (!submission) {
-                return res.status(404).json({ error: 'Submission not found' });
-            }
-
-            // Cập nhật provenance cho lần thực thi kỹ thuật hiện tại
-            await SubmissionProvenance.upsert({
-                submission_id: submission.id,
-                schema_version: schema_version ?? '1.0',
-                github_run_id: String(run_id),
-                github_run_attempt: run_attempt != null
-                    ? Number(run_attempt)
-                    : 1,
-                commit_sha: sha,
-                workflow_name: workflow_name ?? null,
-                execution_environment: execution_environment ?? null,
-                architecture: architecture ?? null,
-                runner_version: runner_version ?? null,
-                problem_version: problemVersion,
-                testset_version: testset_version ?? null
-            });
-
-            // Lưu kết quả biên dịch nếu workflow gửi compile telemetry
-            if (compile_exit_code !== undefined && compile_exit_code !== null) {
-                await SubmissionCompileResult.upsert({
-                    submission_id: submission.id,
-                    status: Number(compile_exit_code) === 0 ? 'SUCCESS' : 'FAILED',
-                    exit_code: Number(compile_exit_code),
-                    duration_ms: compile_duration_ms != null
-                        ? Number(compile_duration_ms)
-                        : null,
-                    compiler: compiler ?? null,
-                    compiler_version: compiler_version ?? null,
-                    command: compile_command ?? null,
-                    stdout: compile_stdout ?? '',
-                    stderr: compile_stderr ?? ''
-                });
-            }
-
-            // Đồng bộ chi tiết lỗi theo kết quả của lần thực thi kỹ thuật hiện tại
-            if (error_type) {
-                await SubmissionErrorDetail.upsert({
-                    submission_id: submission.id,
-                    error_type,
-                    error_stage: error_stage ?? null
-                });
-            } else {
-                await SubmissionErrorDetail.destroy({
-                    where: {
-                        submission_id: submission.id
-                    }
-                });
-            }
-
-            // Lưu telemetry chi tiết của từng testcase
-            if (Array.isArray(result)) {
-                for (let index = 0; index < result.length; index++) {
-                    const testcase = result[index];
-
-                    await SubmissionTestResult.upsert({
-                        submission_id: submission.id,
-                        testcase_id: testcase.id,
-                        testcase_version: testcase.testcase_version ?? null,
-                        test_order: index + 1,
-                        input: testcase.input ?? null,
-                        expected_output: testcase.expected_output ?? null,
-                        actual_output: testcase.actual_output ?? null,
-                        status: String(testcase.status || '').toUpperCase(),
-                        exit_code: testcase.exit_code ?? null,
-                        signal_number: testcase.signal ?? null,
-                        stderr: testcase.stderr ?? '',
-                        duration_ms: testcase.duration_ms ?? null,
-                        timeout_ms: testcase.timeout_ms ?? null
-                    });
-                }
-            }
-
-            // Cập nhật thông tin kết quả
-            await submission.update({
-                // Nếu result có một testcase nào đó bằng error thì status sẽ là ERROR
-                status: result?.some(testcase => testcase.status === 'error') ? 'ERROR' : status.toUpperCase(),
-                result,
-                pass_count,
-                total_count,
-                duration
-            });
-
-            io.emit('new_submission');
-
-            return res.status(200).send('Result received');
-        }
+        return res.status(200).json({ accepted: true, id: saved.id, duplicate: !!saved.duplicate, stale: !!saved.stale, ignored: !!saved.ignored });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Submission callback rejected:', { run_id: req.body?.run_id, status: error.status || 500, message: error.message });
+        return res.status(error.status || 500).json({ error: error.status ? error.message : 'Unable to persist submission; callback may be retried' });
     }
-}
+};
 
 const getGeminiSuggestion = async (_code, submission_id) => {
     try {
