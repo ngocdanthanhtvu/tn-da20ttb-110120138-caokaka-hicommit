@@ -148,7 +148,12 @@ function Result() {
         const submission = await getSubmissionsByID(submission_id as string);
         setSubmission(submission);
 
-        const codeDecoded = atob(submission?.code);
+        const codeDecoded = new TextDecoder('utf-8').decode(
+            Uint8Array.from(
+                atob(submission?.code),
+                char => char.charCodeAt(0)
+            )
+        );
         setCode(codeDecoded);
 
         if (submission?.review) {

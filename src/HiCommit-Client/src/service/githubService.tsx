@@ -101,7 +101,12 @@ const createGitHubAPI = (accessToken: any) => {
 
             const response = await githubAPI.put(`/repos/${owner}/${repo}/contents/${path}`, {
                 message,
-                content: btoa(content),
+                content: btoa(
+                    Array.from(
+                        new TextEncoder().encode(content),
+                        byte => String.fromCharCode(byte)
+                    ).join('')
+                ),
                 sha: fileSha,
                 branch: branch
             });

@@ -186,6 +186,7 @@ function SubmitProblem() {
                     error: 'Nộp bài không thành công, hãy thử lại'
                 },
                 {
+                    id: 'submit-problem',
                     style: {
                         borderRadius: '8px',
                         background: '#222',
@@ -206,7 +207,10 @@ function SubmitProblem() {
         } catch (error) {
             setLoading(false);
             console.error("Error during handleSubmit:", error);
-            // Thêm thông báo lỗi cho người dùng nếu cần
+            toast.error(
+                'Không thể hoàn tất gửi bài. Mã nguồn vẫn được giữ trong trình soạn thảo. Vui lòng kiểm tra lịch sử trước khi nộp lại.',
+                { id: 'submit-problem', duration: 7000 }
+            );
         }
     };
 
