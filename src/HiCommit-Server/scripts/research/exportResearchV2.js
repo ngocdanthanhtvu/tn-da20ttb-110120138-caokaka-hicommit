@@ -2,7 +2,8 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
-const { QueryTypes } = require('sequelize');
+const { QueryTypes, Transaction } = require('sequelize');
+const { randomUUID } = require('crypto');
 const sequelize = require('../../configs/database');
 
 function getArg(args, name) {
@@ -15,7 +16,7 @@ function hasArg(args, name) {
 }
 
 function decodeBase64(value) {
-    if (!value) return null;
+    if (value === null || value === undefined) return null;
 
     try {
         return Buffer.from(value, 'base64').toString('utf8');
@@ -126,7 +127,7 @@ async function main(args = process.argv.slice(2), options = {}) {
     }
 
     function parseDateArg(value, name, endOfDay = false) {
-        if (!value) return null;
+        if (value === null || value === undefined) return null;
 
         const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
 
@@ -170,561 +171,599 @@ async function main(args = process.argv.slice(2), options = {}) {
 
     await sequelize.authenticate();
 
-    const replacements = {};
-    const conditions = [];
+    const createdFiles = [];
+    try {
+        return await sequelize.transaction({
+            isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ,
+            readOnly: true
+        }, async transaction => {
+            const replacements = {};
+            const conditions = [];
 
-    if (idsArg) {
-        const ids = idsArg
-            .split(',')
-            .map(v => v.trim())
-            .filter(Boolean);
+            if (idsArg) {
+                const ids = idsArg
+                    .split(',')
+                    .map(v => v.trim())
+                    .filter(Boolean);
 
-        if (ids.length === 0) {
-            throw new Error(
-                'No valid submission IDs supplied.'
-            );
-        }
+                if (ids.length === 0) {
+                    throw new Error(
+                        'No valid submission IDs supplied.'
+                    );
+                }
 
-        conditions.push('s.id IN (:ids)');
-        replacements.ids = ids;
-    }
+                conditions.push('s.id IN (:ids)');
+                replacements.ids = ids;
+            }
 
-    const problemValues = problemArg
-        ? [problemArg.trim()]
-        : problemsArg
-            ? problemsArg
-                .split(',')
-                .map(v => v.trim())
-                .filter(Boolean)
-            : [];
-
-    if (
-        (problemArg || problemsArg) &&
-        problemValues.length === 0
-    ) {
-        throw new Error(
-            'No valid problem slugs supplied.'
-        );
-    }
-
-    if (problemValues.length === 1) {
-        conditions.push(
-            's.problem_slug = :problem_slug'
-        );
-        replacements.problem_slug =
-            problemValues[0];
-    } else if (problemValues.length > 1) {
-        conditions.push(
-            's.problem_slug IN (:problem_slugs)'
-        );
-        replacements.problem_slugs =
-            problemValues;
-    }
-
-    if (role) {
-        conditions.push(
-            's.actor_role = :actor_role'
-        );
-        replacements.actor_role = role;
-    }
-
-    if (context) {
-        conditions.push(
-            's.problem_type = :problem_type'
-        );
-        replacements.problem_type = context;
-    }
-
-    if (courseArg) {
-        conditions.push(
-            "s.problem_type = 'COURSE'"
-        );
-        conditions.push(
-            's.problem_parent = :course_id'
-        );
-        replacements.course_id =
-            courseArg.trim();
-    }
-
-    if (contestArg) {
-        conditions.push(
-            "s.problem_type = 'CONTEST'"
-        );
-        conditions.push(
-            's.problem_parent = :contest_id'
-        );
-        replacements.contest_id =
-            contestArg.trim();
-    }
-
-    if (fromDate) {
-        conditions.push(
-            's.createdAt >= :from_date'
-        );
-        replacements.from_date = fromDate;
-    }
-
-    if (toDate) {
-        conditions.push(
-            's.createdAt <= :to_date'
-        );
-        replacements.to_date = toDate;
-    }
-
-    const whereClause =
-        conditions.length > 0
-            ? `WHERE ${conditions.join(' AND ')}`
-            : '';
-
-    const submissions = await sequelize.query(
-        `
-        WITH ranked_submissions AS (
-            SELECT
-                s.id,
-                s.problem_slug,
-                CASE
-                    WHEN UPPER(s.problem_slug) REGEXP '^A[0-9][0-9]($|-|_)'
-                    THEN UPPER(SUBSTRING(s.problem_slug, 1, 3))
-                    ELSE NULL
-                END AS assignment_id,
-                s.username,
-                u.role AS actor_role,
-                p.type AS problem_type,
-                p.parent AS problem_parent,
-                s.status,
-                s.pass_count,
-                s.total_count,
-                p.score AS max_points,
-                s.duration,
-                s.createdAt,
-                s.updatedAt,
-                ROW_NUMBER() OVER (
-                    PARTITION BY s.username, s.problem_slug
-                    ORDER BY s.createdAt, s.id
-                ) AS attempt_seq,
-                MIN(s.createdAt) OVER (
-                    PARTITION BY s.username, s.problem_slug
-                ) AS first_attempt_at
-            FROM submissions s
-            LEFT JOIN users u
-                ON BINARY u.username = BINARY s.username
-            LEFT JOIN problems p
-                ON BINARY p.slug = BINARY s.problem_slug
-        )
-        SELECT *
-        FROM ranked_submissions s
-        ${whereClause}
-        ORDER BY
-            s.username,
-            s.problem_slug,
-            s.createdAt,
-            s.id
-        `,
-        {
-            replacements,
-            type: QueryTypes.SELECT
-        }
-    );
-
-    if (options.previewOnly) {
-        return {
-            exporter_version: '2.0',
-            record_schema_version: '1.0',
-            attempts_exported: submissions.length,
-            filters: {
-                combine_with: 'AND',
-                all: exportAll,
-                ids: idsArg
-                    ? idsArg
+            const problemValues = problemArg
+                ? [problemArg.trim()]
+                : problemsArg
+                    ? problemsArg
                         .split(',')
                         .map(v => v.trim())
                         .filter(Boolean)
-                    : null,
-                problems:
-                    problemValues.length > 0
-                        ? problemValues
-                        : null,
-                role,
-                course_id:
-                    courseArg
-                        ? courseArg.trim()
-                        : null,
-                contest_id:
-                    contestArg
-                        ? contestArg.trim()
-                        : null,
-                context,
-                from_utc:
-                    fromDate
-                        ? fromDate.toISOString()
-                        : null,
-                to_utc:
-                    toDate
-                        ? toDate.toISOString()
-                        : null
-            }
-        };
-    }
+                    : [];
 
-    const outputDir = path.resolve(
-        __dirname,
-        '../../../../research_exports'
-    );
-
-    fs.mkdirSync(outputDir, { recursive: true });
-
-    const timestamp = new Date()
-        .toISOString()
-        .replace(/[:.]/g, '-');
-
-    const outputPath = path.join(
-        outputDir,
-        `research_export_v2_${timestamp}.jsonl`
-    );
-
-    const stream = fs.createWriteStream(outputPath, {
-        encoding: 'utf8'
-    });
-
-    for (const submission of submissions) {
-        const sourceRows = await sequelize.query(
-            `
-            SELECT
-                path,
-                language,
-                encoding,
-                content_base64,
-                sha256,
-                size_bytes,
-                line_count
-            FROM submission_sources
-            WHERE submission_id = :submission_id
-            ORDER BY path
-            `,
-            {
-                replacements: {
-                    submission_id: submission.id
-                },
-                type: QueryTypes.SELECT
-            }
-        );
-
-        const compileResult = await sequelize.query(
-            `
-            SELECT
-                status,
-                exit_code,
-                duration_ms,
-                compiler,
-                compiler_version,
-                command,
-                stdout,
-                stderr
-            FROM submission_compile_results
-            WHERE submission_id = :submission_id
-            LIMIT 1
-            `,
-            {
-                replacements: {
-                    submission_id: submission.id
-                },
-                type: QueryTypes.SELECT
-            }
-        );
-
-        const testRows = await sequelize.query(
-            `
-            SELECT
-                testcase_id,
-                testcase_version,
-                test_order,
-                input,
-                expected_output,
-                actual_output,
-                status,
-                exit_code,
-                signal_number,
-                stderr,
-                duration_ms,
-                timeout_ms
-            FROM submission_test_results
-            WHERE submission_id = :submission_id
-            ORDER BY test_order, id
-            `,
-            {
-                replacements: {
-                    submission_id: submission.id
-                },
-                type: QueryTypes.SELECT
-            }
-        );
-
-        const provenanceRows = await sequelize.query(
-            `
-            SELECT
-                schema_version,
-                github_run_id,
-                github_run_attempt,
-                commit_sha,
-                workflow_name,
-                execution_environment,
-                architecture,
-                runner_version,
-                problem_version,
-                testset_version
-            FROM submission_provenance
-            WHERE submission_id = :submission_id
-            LIMIT 1
-            `,
-            {
-                replacements: {
-                    submission_id: submission.id
-                },
-                type: QueryTypes.SELECT
-            }
-        );
-
-        const compile = compileResult[0] || null;
-        const provenance = provenanceRows[0] || null;
-
-        const firstAttemptAt = new Date(submission.first_attempt_at);
-        const currentAttemptAt = new Date(submission.createdAt);
-
-        const timestampOffsetSeconds = Math.max(
-            0,
-            Math.round(
-                (currentAttemptAt.getTime() -
-                    firstAttemptAt.getTime()) / 1000
-            )
-        );
-
-        const sources = sourceRows.map(source => ({
-            path: source.path,
-            language: source.language,
-            encoding: source.encoding,
-            sha256: source.sha256,
-            size_bytes: source.size_bytes,
-            line_count: source.line_count,
-            content: decodeBase64(source.content_base64)
-        }));
-
-        const passed = testRows.filter(
-            row => row.status === 'PASSED'
-        ).length;
-
-        const failed = testRows.filter(
-            row => row.status === 'FAILED'
-        ).length;
-
-        const error = testRows.filter(
-            row => row.status === 'ERROR'
-        ).length;
-
-        const timeout = testRows.filter(
-            row => row.status === 'TIMEOUT'
-        ).length;
-
-        let telemetryLevel = 'legacy';
-
-        const hasSource = sources.length > 0;
-        const hasCompile = compile !== null;
-        const hasProvenance = provenance !== null;
-
-        if (hasSource && hasCompile && hasProvenance) {
-            telemetryLevel = 'core';
-
-            const hasProblemVersion =
-                provenance.problem_version !== null &&
-                provenance.problem_version !== '';
-
-            const hasTestVersioning =
-                testRows.length === 0 ||
-                (
-                    provenance.testset_version !== null &&
-                    provenance.testset_version !== '' &&
-                    testRows.every(
-                        test =>
-                            test.testcase_version !== null &&
-                            test.testcase_version !== ''
-                    )
+            if (
+                (problemArg || problemsArg) &&
+                problemValues.length === 0
+            ) {
+                throw new Error(
+                    'No valid problem slugs supplied.'
                 );
-
-            if (hasProblemVersion && hasTestVersioning) {
-                telemetryLevel = 'versioned';
             }
-        }
 
-        const record = {
-            schema_version: '1.0',
-            telemetry_level: telemetryLevel,
-            meta: {
-                student_id: submission.username,
-                assignment_id: submission.assignment_id,
-                problem_slug: submission.problem_slug,
-                submission_id: submission.id,
-                attempt_seq: Number(submission.attempt_seq),
-                timestamp: submission.createdAt,
-                timestamp_offset_seconds: timestampOffsetSeconds
-            },
+            if (problemValues.length === 1) {
+                conditions.push(
+                    's.problem_slug = :problem_slug'
+                );
+                replacements.problem_slug =
+                    problemValues[0];
+            } else if (problemValues.length > 1) {
+                conditions.push(
+                    's.problem_slug IN (:problem_slugs)'
+                );
+                replacements.problem_slugs =
+                    problemValues;
+            }
 
-            sources,
+            if (role) {
+                conditions.push(
+                    's.actor_role = :actor_role'
+                );
+                replacements.actor_role = role;
+            }
 
-            compile: compile
-                ? {
-                    status: compile.status,
-                    exit_code: compile.exit_code,
-                    duration_ms: compile.duration_ms,
-                    compiler: compile.compiler,
-                    compiler_version: compile.compiler_version,
-                    command: compile.command,
-                    stdout: compile.stdout,
-                    stderr: compile.stderr
+            if (context) {
+                conditions.push(
+                    's.problem_type = :problem_type'
+                );
+                replacements.problem_type = context;
+            }
+
+            if (courseArg) {
+                conditions.push(
+                    "s.problem_type = 'COURSE'"
+                );
+                conditions.push(
+                    's.problem_parent = :course_id'
+                );
+                replacements.course_id =
+                    courseArg.trim();
+            }
+
+            if (contestArg) {
+                conditions.push(
+                    "s.problem_type = 'CONTEST'"
+                );
+                conditions.push(
+                    's.problem_parent = :contest_id'
+                );
+                replacements.contest_id =
+                    contestArg.trim();
+            }
+
+            if (fromDate) {
+                conditions.push(
+                    's.createdAt >= :from_date'
+                );
+                replacements.from_date = fromDate;
+            }
+
+            if (toDate) {
+                conditions.push(
+                    's.createdAt <= :to_date'
+                );
+                replacements.to_date = toDate;
+            }
+
+            const whereClause =
+                conditions.length > 0
+                    ? `WHERE ${conditions.join(' AND ')}`
+                    : '';
+
+            const submissions = await sequelize.query(
+                `
+                WITH ranked_submissions AS (
+                    SELECT
+                        s.id,
+                        s.problem_slug,
+                        CASE
+                            WHEN UPPER(s.problem_slug) REGEXP '^[A-Z]+[0-9]+($|-|_)'
+                            THEN UPPER(SUBSTRING_INDEX(REPLACE(s.problem_slug, '_', '-'), '-', 1))
+                            ELSE NULLIF(s.problem_slug, '')
+                        END AS assignment_id,
+                        s.username,
+                        u.role AS actor_role,
+                        p.type AS problem_type,
+                        p.parent AS problem_parent,
+                        s.status,
+                        s.pass_count,
+                        s.total_count,
+                        p.score AS max_points,
+                        s.duration,
+                        s.commit AS commit_message,
+                        s.createdAt,
+                        s.updatedAt,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY s.username, s.problem_slug
+                            ORDER BY s.createdAt, s.id
+                        ) AS attempt_seq,
+                        MIN(s.createdAt) OVER (
+                            PARTITION BY s.username, s.problem_slug
+                        ) AS first_attempt_at
+                    FROM submissions s
+                    LEFT JOIN users u
+                        ON BINARY u.username = BINARY s.username
+                    LEFT JOIN problems p
+                        ON BINARY p.slug = BINARY s.problem_slug
+                )
+                SELECT *
+                FROM ranked_submissions s
+                ${whereClause}
+                ORDER BY
+                    s.username,
+                    s.problem_slug,
+                    s.createdAt,
+                    s.id
+                `,
+                {
+                    replacements,
+                    type: QueryTypes.SELECT, transaction
                 }
-                : null,
+            );
 
-            tests: {
-                executed: testRows.length > 0,
-                total: testRows.length,
-                passed,
-                failed,
-                error,
-                timeout,
-                cases: testRows.map(test => ({
-                    testcase_id: test.testcase_id,
-                    testcase_version: test.testcase_version,
-                    test_order: test.test_order,
-                    status: test.status,
-                    input: test.input,
-                    expected_output: test.expected_output,
-                    actual_output: test.actual_output,
-                    exit_code: test.exit_code,
-                    signal_number: test.signal_number,
-                    stderr: test.stderr,
-                    duration_ms: test.duration_ms,
-                    timeout_ms: test.timeout_ms
-                }))
-            },
+            if (options.previewOnly) {
+                return {
+                    exporter_version: '2.1',
+                    record_schema_version: '1.1',
+                    attempts_exported: submissions.length,
+                    filters: {
+                        combine_with: 'AND',
+                        all: exportAll,
+                        ids: idsArg
+                            ? idsArg
+                                .split(',')
+                                .map(v => v.trim())
+                                .filter(Boolean)
+                            : null,
+                        problems:
+                            problemValues.length > 0
+                                ? problemValues
+                                : null,
+                        role,
+                        course_id:
+                            courseArg
+                                ? courseArg.trim()
+                                : null,
+                        contest_id:
+                            contestArg
+                                ? contestArg.trim()
+                                : null,
+                        context,
+                        from_utc:
+                            fromDate
+                                ? fromDate.toISOString()
+                                : null,
+                        to_utc:
+                            toDate
+                                ? toDate.toISOString()
+                                : null
+                    }
+                };
+            }
 
-            result: {
-                status: submission.status,
-                pass_count: submission.pass_count,
-                total_count: submission.total_count,
-                duration_seconds: submission.duration
-            },
+            const outputDir = options.outputDir || path.resolve(
+                __dirname,
+                '../../../../research_exports'
+            );
 
-            score: {
-                max_points: submission.max_points,
-                earned_points:
-                    submission.max_points !== null &&
-                    submission.pass_count !== null &&
-                    submission.total_count > 0
-                        ? Number(
-                            (
-                                submission.max_points *
-                                submission.pass_count /
-                                submission.total_count
-                            ).toFixed(2)
+            fs.mkdirSync(outputDir, { recursive: true });
+
+            const timestamp = new Date()
+                .toISOString()
+                .replace(/[:.]/g, '-') + '-' + randomUUID();
+
+            const outputPath = path.join(
+                outputDir,
+                `research_export_v2_${timestamp}.jsonl`
+            );
+
+            const file = await fs.promises.open(outputPath, 'wx');
+            createdFiles.push(outputPath);
+
+            try {
+                for (const submission of submissions) {
+                    const sourceRows = await sequelize.query(
+                        `
+                        SELECT
+                            path,
+                            language,
+                            encoding,
+                            content_base64,
+                            sha256,
+                            size_bytes,
+                            line_count
+                        FROM submission_sources
+                        WHERE submission_id = :submission_id
+                        ORDER BY path
+                        `,
+                        {
+                            replacements: {
+                                submission_id: submission.id
+                            },
+                            type: QueryTypes.SELECT, transaction
+                        }
+                    );
+
+                    const compileResult = await sequelize.query(
+                        `
+                        SELECT
+                            status,
+                            exit_code,
+                            duration_ms,
+                            compiler,
+                            compiler_version,
+                            command,
+                            stdout,
+                            stderr
+                        FROM submission_compile_results
+                        WHERE submission_id = :submission_id
+                        LIMIT 1
+                        `,
+                        {
+                            replacements: {
+                                submission_id: submission.id
+                            },
+                            type: QueryTypes.SELECT, transaction
+                        }
+                    );
+
+                    const testRows = await sequelize.query(
+                        `
+                        SELECT
+                            testcase_id,
+                            testcase_version,
+                            test_order,
+                            input,
+                            expected_output,
+                            actual_output,
+                            status,
+                            exit_code,
+                            signal_number,
+                            stderr,
+                            duration_ms,
+                            timeout_ms
+                        FROM submission_test_results
+                        WHERE submission_id = :submission_id
+                        ORDER BY test_order, id
+                        `,
+                        {
+                            replacements: {
+                                submission_id: submission.id
+                            },
+                            type: QueryTypes.SELECT, transaction
+                        }
+                    );
+
+                    const provenanceRows = await sequelize.query(
+                        `
+                        SELECT
+                            schema_version,
+                            github_run_id,
+                            github_run_attempt,
+                            commit_sha,
+                            workflow_name,
+                            execution_environment,
+                            architecture,
+                            runner_version,
+                            problem_version,
+                            testset_version
+                        FROM submission_provenance
+                        WHERE submission_id = :submission_id
+                        LIMIT 1
+                        `,
+                        {
+                            replacements: {
+                                submission_id: submission.id
+                            },
+                            type: QueryTypes.SELECT, transaction
+                        }
+                    );
+
+                    const errorRows = await sequelize.query(
+                        `SELECT error_type, error_stage, message
+                         FROM submission_error_details
+                         WHERE submission_id = :submission_id
+                         LIMIT 1`,
+                        { replacements: { submission_id: submission.id }, type: QueryTypes.SELECT, transaction }
+                    );
+
+                    const compile = compileResult[0] || null;
+                    const provenance = provenanceRows[0] || null;
+
+                    const firstAttemptAt = new Date(submission.first_attempt_at);
+                    const currentAttemptAt = new Date(submission.createdAt);
+
+                    const timestampOffsetSeconds = Math.max(
+                        0,
+                        Math.round(
+                            (currentAttemptAt.getTime() -
+                                firstAttemptAt.getTime()) / 1000
                         )
-                        : null,
-                score_ratio:
-                    submission.pass_count !== null &&
-                    submission.total_count > 0
-                        ? Number(
+                    );
+
+                    const sources = sourceRows.map(source => ({
+                        path: source.path,
+                        language: source.language,
+                        encoding: source.encoding,
+                        sha256: source.sha256,
+                        size_bytes: source.size_bytes,
+                        line_count: source.line_count,
+                        content: decodeBase64(source.content_base64)
+                    }));
+
+                    const passed = testRows.filter(
+                        row => row.status === 'PASSED'
+                    ).length;
+
+                    const failed = testRows.filter(
+                        row => row.status === 'FAILED'
+                    ).length;
+
+                    const error = testRows.filter(
+                        row => row.status === 'ERROR'
+                    ).length;
+
+                    const timeout = testRows.filter(
+                        row => row.status === 'TIMEOUT'
+                    ).length;
+
+                    let telemetryLevel = 'legacy';
+
+                    const hasSource = sources.length > 0;
+                    const hasCompile = compile !== null;
+                    const hasProvenance = provenance !== null;
+
+                    if (hasSource && hasCompile && hasProvenance) {
+                        telemetryLevel = 'core';
+
+                        const hasProblemVersion =
+                            provenance.problem_version !== null &&
+                            provenance.problem_version !== '';
+
+                        const hasTestVersioning =
+                            testRows.length === 0 ||
                             (
-                                submission.pass_count /
-                                submission.total_count
-                            ).toFixed(4)
-                        )
+                                provenance.testset_version !== null &&
+                                provenance.testset_version !== '' &&
+                                testRows.every(
+                                    test =>
+                                        test.testcase_version !== null &&
+                                        test.testcase_version !== ''
+                                )
+                            );
+
+                        if (hasProblemVersion && hasTestVersioning) {
+                            telemetryLevel = 'versioned';
+                        }
+                    }
+
+                    const record = {
+                        schema_version: '1.1',
+                        telemetry_level: telemetryLevel,
+                        meta: {
+                            student_id: submission.username,
+                            assignment_id: submission.assignment_id,
+                            problem_slug: submission.problem_slug,
+                            submission_id: submission.id,
+                            attempt_seq: Number(submission.attempt_seq),
+                            timestamp: submission.createdAt,
+                            result_updated_at: submission.updatedAt,
+                            commit_message: submission.commit_message ?? null,
+                            timestamp_offset_seconds: timestampOffsetSeconds
+                        },
+
+                        sources,
+
+                        compile: compile
+                            ? {
+                                status: compile.status,
+                                exit_code: compile.exit_code,
+                                duration_ms: compile.duration_ms,
+                                compiler: compile.compiler,
+                                compiler_version: compile.compiler_version,
+                                command: compile.command,
+                                stdout: compile.stdout,
+                                stderr: compile.stderr
+                            }
+                            : null,
+
+                        tests: {
+                            executed: testRows.length > 0,
+                            total: testRows.length,
+                            passed,
+                            failed,
+                            error,
+                            timeout,
+                            cases: testRows.map(test => ({
+                                testcase_id: test.testcase_id,
+                                testcase_version: test.testcase_version,
+                                test_order: test.test_order,
+                                status: test.status,
+                                input: test.input,
+                                expected_output: test.expected_output,
+                                actual_output: test.actual_output,
+                                exit_code: test.exit_code,
+                                signal_number: test.signal_number,
+                                stderr: test.stderr,
+                                duration_ms: test.duration_ms,
+                                timeout_ms: test.timeout_ms
+                            }))
+                        },
+
+                        result: {
+                            status: submission.status,
+                            pass_count: submission.pass_count,
+                            total_count: submission.total_count,
+                            duration_seconds: submission.duration
+                        },
+
+                        score: {
+                            max_points: submission.max_points,
+                            earned_points:
+                                submission.max_points !== null &&
+                                submission.pass_count !== null &&
+                                submission.total_count > 0
+                                    ? Number(
+                                        (
+                                            submission.max_points *
+                                            submission.pass_count /
+                                            submission.total_count
+                                        ).toFixed(2)
+                                    )
+                                    : null,
+                            score_ratio:
+                                submission.pass_count !== null &&
+                                submission.total_count > 0
+                                    ? Number(
+                                        (
+                                            submission.pass_count /
+                                            submission.total_count
+                                        ).toFixed(4)
+                                    )
+                                    : null,
+                            derived_from: "pass_count/total_count"
+                        },
+
+                        error_detail: errorRows[0] || null,
+
+                        provenance
+                    };
+
+                    await file.writeFile(JSON.stringify(record) + '\n', 'utf8');
+                }
+
+            } finally {
+                await file.close();
+            }
+
+            const metaPath = path.join(
+                outputDir,
+                `research_export_v2_${timestamp}.meta.json`
+            );
+
+            const exportMeta = {
+                exporter_version: '2.1',
+                record_schema_version: '1.1',
+                generated_at_utc: new Date().toISOString(),
+                attempts_exported: submissions.length,
+                output_file: path.basename(outputPath),
+                filters: {
+                    combine_with: 'AND',
+                    all: exportAll,
+                    ids: idsArg
+                        ? idsArg
+                            .split(',')
+                            .map(v => v.trim())
+                            .filter(Boolean)
                         : null,
-                derived_from: "pass_count/total_count"
-            },
+                    problems:
+                        problemValues.length > 0
+                            ? problemValues
+                            : null,
+                    role,
+                    course_id:
+                        courseArg
+                            ? courseArg.trim()
+                            : null,
+                    contest_id:
+                        contestArg
+                            ? contestArg.trim()
+                            : null,
+                    context,
+                    from_utc:
+                        fromDate
+                            ? fromDate.toISOString()
+                            : null,
+                    to_utc:
+                        toDate
+                            ? toDate.toISOString()
+                            : null
+                },
+                semantics: {
+                    role:
+                        'Current users.role at export time; role is not snapshotted on the submission.',
+                    context:
+                        'Derived from current problems.type and problems.parent metadata.',
+                    contest:
+                        'Contest filtering uses problems.type=CONTEST and problems.parent=contest_id; it does not infer context from contests.problems.',
+                    attempt_seq:
+                        'Computed over the full username + problem_slug submission history before export filters are applied.',
+                    time:
+                        'Submission createdAt is the backend record creation time, filtered in UTC; it is not the browser click or GitHub commit time. If pending is missing, the record may be created on final receipt.',
+                    timestamp_offset_seconds:
+                        'Elapsed wall-clock seconds from the first stored submission for the same username and problem_slug, including idle time; not active study time.',
+                    assignment_id:
+                        'Readable alias: a leading letters+digits code before - or _ is uppercased; otherwise the full problem_slug is used. This alias is not globally unique; use problem_slug to identify the assignment.',
+                    execution_selection:
+                        'One row per stored submission/run_id, representing its current latest execution projection. GitHub reruns do not increment attempt_seq. Historical callbacks remain in submission_callbacks and are not included in this file.',
+                    database_snapshot:
+                        'All SELECTs in one export use the same REPEATABLE READ transaction. Preview and download are separate snapshots.',
+                    error_detail:
+                        'Stored submission_error_details for the projected execution, or null when no explicit classification was stored. Null does not prove absence of a runtime or infrastructure error.',
+                    result_updated_at:
+                        'Submission updatedAt; it can advance on a rerun. The meta.timestamp and attempt_seq remain tied to the original stored submission.',
+                    duration:
+                        'Runner-reported wall time and compile/test telemetry depend on runner/compiler/environment versions; do not treat mixed versions as identical measurement conditions.'
+                }
+            };
 
-            provenance
-        };
+            const metaFile = await fs.promises.open(metaPath, 'wx');
+            createdFiles.push(metaPath);
+            try {
+                await metaFile.writeFile(JSON.stringify(exportMeta, null, 2) + '\n', 'utf8');
+            } finally {
+                await metaFile.close();
+            }
 
-        stream.write(JSON.stringify(record) + '\n');
+            console.log(`Exported ${submissions.length} attempts`);
+            console.log(`Output: ${outputPath}`);
+            console.log(`Metadata: ${metaPath}`);
+
+            return {
+                attempts_exported: submissions.length,
+                outputPath,
+                metaPath,
+                metadata: exportMeta
+            };
+        });
+    } catch (error) {
+        // Do not return or retain partial exports if a database, filesystem, or COMMIT step fails.
+        await Promise.allSettled(createdFiles.map(file => fs.promises.unlink(file)));
+        throw error;
     }
-
-    stream.end();
-
-    await new Promise((resolve, reject) => {
-        stream.on('finish', resolve);
-        stream.on('error', reject);
-    });
-
-    const metaPath = path.join(
-        outputDir,
-        `research_export_v2_${timestamp}.meta.json`
-    );
-
-    const exportMeta = {
-        exporter_version: '2.0',
-        record_schema_version: '1.0',
-        generated_at_utc: new Date().toISOString(),
-        attempts_exported: submissions.length,
-        output_file: path.basename(outputPath),
-        filters: {
-            combine_with: 'AND',
-            all: exportAll,
-            ids: idsArg
-                ? idsArg
-                    .split(',')
-                    .map(v => v.trim())
-                    .filter(Boolean)
-                : null,
-            problems:
-                problemValues.length > 0
-                    ? problemValues
-                    : null,
-            role,
-            course_id:
-                courseArg
-                    ? courseArg.trim()
-                    : null,
-            contest_id:
-                contestArg
-                    ? contestArg.trim()
-                    : null,
-            context,
-            from_utc:
-                fromDate
-                    ? fromDate.toISOString()
-                    : null,
-            to_utc:
-                toDate
-                    ? toDate.toISOString()
-                    : null
-        },
-        semantics: {
-            role:
-                'Current users.role at export time; role is not snapshotted on the submission.',
-            context:
-                'Derived from current problems.type and problems.parent metadata.',
-            contest:
-                'Contest filtering uses problems.type=CONTEST and problems.parent=contest_id; it does not infer context from contests.problems.',
-            attempt_seq:
-                'Computed over the full username + problem_slug submission history before export filters are applied.',
-            time:
-                'Submission createdAt is filtered in UTC.'
-        }
-    };
-
-    fs.writeFileSync(
-        metaPath,
-        JSON.stringify(exportMeta, null, 2) + '\n',
-        'utf8'
-    );
-
-    console.log(`Exported ${submissions.length} attempts`);
-    console.log(`Output: ${outputPath}`);
-    console.log(`Metadata: ${metaPath}`);
-
-    return {
-        attempts_exported: submissions.length,
-        outputPath,
-        metaPath,
-        metadata: exportMeta
-    };
 }
 
 async function preview(args) {
