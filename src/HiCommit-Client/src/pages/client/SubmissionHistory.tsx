@@ -47,34 +47,113 @@ function SubmissionHistory(props: any) {
     const [statusState, setStatusState] = useState<string | null>(status);
     const [isInitial, setIsInitial] = useState<boolean>(false);
 
-    const handleGetMySubmissons = async () => {
-        const data = await getMySubmissionsByProblemSlug(problem_id as any);
-        console.log(data);
-        setIsInitial(true);
-        setMySubmissions(data);
-    }
+    const targetSha = queryParams.get('commit_sha');
+    const pendingRequested = status?.toUpperCase() === 'PENDING';
+    const [trackingMessage, setTrackingMessage] = useState('');
+    const [retryTracking, setRetryTracking] = useState(0);
 
     useEffect(() => {
-        if (!socket) return;
+        if (!problem_id) return;
 
-        const handleNewSubmission = () => {
-            setStatusState(null);
-            handleGetMySubmissons();
+        let disposed = false;
+        let busy = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const deadline = Date.now() + 120000;
+        const finalStatuses = new Set([
+            'PASSED', 'FAILED', 'ERROR', 'COMPILE_ERROR'
+        ]);
+
+        setMySubmissions([]);
+        setIsInitial(false);
+        setTrackingMessage('');
+        setStatusState(pendingRequested && targetSha ? 'PENDING' : null);
+
+        const refresh = async () => {
+            if (disposed || busy) return;
+            busy = true;
+            if (timer !== undefined) clearTimeout(timer);
+            let keepChecking = false;
+
+            try {
+                const data = await getMySubmissionsByProblemSlug(problem_id);
+                if (disposed) return;
+                if (!Array.isArray(data)) {
+                    throw new Error('Unexpected submission history response');
+                }
+
+                setMySubmissions(data);
+                setIsInitial(true);
+
+                const matching = targetSha
+                    ? data.filter(item => item.sha === targetSha)
+                    : [];
+                const matchedFinal = matching.some(
+                    item => finalStatuses.has(item.status)
+                );
+                const hasPending = data.some(
+                    item => item.status === 'PENDING'
+                );
+                const awaitingCommit =
+                    pendingRequested && !!targetSha && !matchedFinal;
+
+                keepChecking = awaitingCommit || hasPending;
+                setStatusState(keepChecking ? 'PENDING' : null);
+                setTrackingMessage(
+                    pendingRequested && !targetSha
+                        ? 'Không có mã commit để đối chiếu lượt vừa gửi. Hãy kiểm tra danh sách kết quả hoặc GitHub Actions.'
+                        : ''
+                );
+            } catch (error) {
+                if (disposed) return;
+                console.error('Error refreshing submission history:', error);
+                setIsInitial(true);
+                setTrackingMessage(
+                    'Chưa tải được lịch sử bài nộp. Bạn có thể kiểm tra lại.'
+                );
+                keepChecking = true;
+            } finally {
+                busy = false;
+                if (!disposed && keepChecking) {
+                    if (Date.now() < deadline) {
+                        timer = setTimeout(() => { void refresh(); }, 5000);
+                    } else {
+                        setStatusState(null);
+                        setTrackingMessage(
+                            'Chưa xác nhận được kết quả sau 2 phút. Bài có thể vẫn đang xử lý. Hãy kiểm tra lại hoặc xem GitHub Actions trước khi nộp lại.'
+                        );
+                    }
+                }
+            }
         };
 
-        socket.on('new_submission', handleNewSubmission);
+        const handleUpdate = () => { void refresh(); };
+        socket?.on('new_submission', handleUpdate);
+        socket?.on('connect', handleUpdate);
+        void refresh();
 
         return () => {
-            socket.off('new_submission', handleNewSubmission);
+            disposed = true;
+            if (timer !== undefined) clearTimeout(timer);
+            socket?.off('new_submission', handleUpdate);
+            socket?.off('connect', handleUpdate);
         };
-    }, [socket]);
-
-    useEffect(() => {
-        handleGetMySubmissons();
-    }, []);
+    }, [socket, problem_id, targetSha, pendingRequested, retryTracking]);
 
     return (
         <div className="SubmissionHistory flex flex-col gap-8">
+            {trackingMessage && (
+                <div role="status" className="border rounded-lg p-4">
+                    <p>{trackingMessage}</p>
+                    <button
+                        type="button"
+                        className="mt-2 text-primary underline"
+                        onClick={() => setRetryTracking(value => value + 1)}
+                    >
+                        Kiểm tra lại kết quả
+                    </button>
+                </div>
+            )}
+
             {
                 (mySubmissions?.length > 0 || statusState?.toLocaleUpperCase() === "PENDING") ?
                     <>
@@ -88,7 +167,7 @@ function SubmissionHistory(props: any) {
                                     <GitGraphNode end={mySubmissions?.length === 0}>
                                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border bg-zinc-100/80 dark:bg-zinc-900 hover:bg-zinc-200/50 hover:dark:bg-zinc-800/70 p-3 px-5 rounded-lg animate-pulse">
                                             <p className="opacity-70 italic">
-                                                Một số tiến trình đang trong hàng đợi
+                                                Đang kiểm tra kết quả bài nộp
                                                 <span className="animate-[ping_1.5s_0.5s_ease-in-out_infinite]">.</span>
                                                 <span className="animate-[ping_1.5s_0.7s_ease-in-out_infinite]">.</span>
                                                 <span className="animate-[ping_1.5s_0.9s_ease-in-out_infinite]">.</span>

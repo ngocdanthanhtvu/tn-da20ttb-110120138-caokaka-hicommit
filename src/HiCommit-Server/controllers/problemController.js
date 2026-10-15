@@ -636,11 +636,33 @@ const writeResultFromGitHub = async (req, res) => {
         if (status === 'pending') {
             // Xử lý khi status là pending
 
-            // Fetch commit details using the SHA
-            const commitResponse = await axios.get(`https://api.github.com/repos/${actor}/hicommit-problems/commits/${sha}`);
+            // Callback đã được xác thực bằng GitHub OIDC.
+            // Lỗi lấy metadata commit không được chặn việc lưu bài.
+            let commitMessage = `Bài nộp ${problem} (${sha.slice(0, 12)})`;
 
-            const commitData = commitResponse.data;
-            const commitMessage = commitData.commit.message;
+            try {
+                const commitResponse = await axios.get(
+                    `https://api.github.com/repos/${actor}/hicommit-problems/commits/${sha}`,
+                    { timeout: 5000 }
+                );
+                const message = commitResponse.data?.commit?.message;
+                if (typeof message !== 'string' || !message.trim()) {
+                    throw new Error('Missing commit message');
+                }
+                commitMessage = message;
+            } catch (error) {
+                const headers = error.response?.headers || {};
+                console.warn('Commit metadata unavailable; saving OIDC-verified submission', {
+                    actor,
+                    run_id,
+                    sha,
+                    upstream_status: error.response?.status ?? null,
+                    error_code: error.code ?? null,
+                    remaining: headers['x-ratelimit-remaining'] ?? null,
+                    reset: headers['x-ratelimit-reset'] ?? null,
+                    retry_after: headers['retry-after'] ?? null
+                });
+            }
 
             // Nếu commitMessage bắt đầu bằng [config] hoặc Initialize thì không xử lý
             if (commitMessage.startsWith('[config]') || commitMessage.startsWith('Initialize')) {

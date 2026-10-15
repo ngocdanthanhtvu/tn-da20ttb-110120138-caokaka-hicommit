@@ -200,7 +200,14 @@ function SubmitProblem() {
             console.log(response);
 
             setTimeout(() => {
-                navigate(`/problem/${problem_id}?tab=history&status=pending`);
+                const params = new URLSearchParams({
+                    tab: 'history',
+                    status: 'pending'
+                });
+                if (response?.commit?.sha) {
+                    params.set('commit_sha', response.commit.sha);
+                }
+                navigate(`/problem/${problem_id}?${params.toString()}`);
             }, 1000);
 
             setLoading(false);
