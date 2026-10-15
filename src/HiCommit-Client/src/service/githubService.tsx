@@ -1,5 +1,18 @@
 import axios from 'axios';
 
+export class RunnerSetupError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'RunnerSetupError';
+    }
+}
+
+// Upgrade supported C callers using each signed-in student's own token.
+export const shouldUpgradeCWorkflow = (owner: string) => Boolean(owner);
+
+const LEGACY_C_RUNNER = 'ngocdanthanhtvu/hicommit-runner/.github/workflows/c-runner.yml@35880c4dd87f02f5b6ca1aef8ee2560094c9dd47';
+const CURRENT_C_RUNNER = 'ngocdanthanhtvu/hicommit-runner/.github/workflows/c-runner.yml@5c115972e98e05fa7c3089f7f37e08be9d7f3279';
+
 // Hàm khởi tạo các API service với accessToken
 const createGitHubAPI = (accessToken: any) => {
 
@@ -136,6 +149,61 @@ const createGitHubAPI = (accessToken: any) => {
         }
     };
 
+    // Upgrade only the known C caller, with the signed-in student's own token.
+    // Await this configuration commit before committing source. Never overwrite main.c here.
+    const ensureCWorkflow = async (owner: string, repo: string, branch: string) => {
+        const workflowPath = `/repos/${owner}/${repo}/contents/.github/workflows/ci.yml`;
+        const read = async () => {
+            const response = await githubAPI.get(workflowPath, { params: { ref: branch } });
+            if (response.data.encoding !== 'base64' || typeof response.data.content !== 'string' || !response.data.sha) {
+                throw new RunnerSetupError('Không đọc được cấu hình chấm bài. Chưa gửi mã nguồn; vui lòng báo giảng viên.');
+            }
+            const bytes = Uint8Array.from(atob(response.data.content.replace(/\s/g, '')), char => char.charCodeAt(0));
+            const text = new TextDecoder('utf-8').decode(bytes);
+            const callers = [...text.matchAll(/^[ \t]*uses:[ \t]*(ngocdanthanhtvu\/hicommit-runner\/\.github\/workflows\/c-runner\.yml@[a-f0-9]{40})[ \t]*(?:#.*)?\r?$/gm)];
+            if (callers.length !== 1 || ![LEGACY_C_RUNNER, CURRENT_C_RUNNER].includes(callers[0][1])) {
+                throw new RunnerSetupError('Workflow chấm bài khác phiên bản được hỗ trợ. Chưa gửi mã nguồn; vui lòng báo giảng viên.');
+            }
+            return { text, sha: response.data.sha, runner: callers[0][1], line: callers[0][0] };
+        };
+        try {
+            const file = await read();
+            if (file.runner === CURRENT_C_RUNNER) return { updated: false };
+            const content = file.text.replace(file.line, file.line.replace(LEGACY_C_RUNNER, CURRENT_C_RUNNER));
+            try {
+                await githubAPI.put(workflowPath, {
+                    message: '[config] Update HiCommit C runner', branch, sha: file.sha,
+                    content: btoa(Array.from(new TextEncoder().encode(content), byte => String.fromCharCode(byte)).join(''))
+                });
+            } catch (error) {
+                // Another tab may have upgraded it, or the write may have succeeded before a network timeout.
+                // Confirm by reading; do not blindly repeat a write with an uncertain outcome.
+                try {
+                    if ((await read()).runner === CURRENT_C_RUNNER) return { updated: false };
+                } catch { /* Report the original failure below. */ }
+                throw error;
+            }
+            return { updated: true };
+        } catch (error) {
+            if (error instanceof RunnerSetupError) throw error;
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status;
+                const headers = error.response?.headers;
+                const message = String(error.response?.data?.message || '');
+                if (status === 429 || (status === 403 && (String(headers?.['x-ratelimit-remaining']) === '0' || headers?.['retry-after'] || /rate limit|abuse/i.test(message)))) {
+                    throw new RunnerSetupError('GitHub đang giới hạn yêu cầu. Chưa gửi mã nguồn; vui lòng chờ rồi thử lại.');
+                }
+                if (status === 401 || status === 403) {
+                    throw new RunnerSetupError('GitHub chưa cho phép cập nhật workflow. Chưa gửi mã nguồn; hãy đăng nhập lại HiCommit bằng GitHub và cấp quyền được yêu cầu. Nếu vẫn lỗi, báo giảng viên.');
+                }
+                if (status === 404) {
+                    throw new RunnerSetupError('Không tìm thấy hoặc không có quyền đọc workflow chấm bài. Chưa gửi mã nguồn; vui lòng báo giảng viên.');
+                }
+            }
+            throw new RunnerSetupError('Chưa xác nhận được cấu hình chấm bài trên GitHub. Mã nguồn chưa được gửi; vui lòng thử lại khi kết nối ổn định.');
+        }
+    };
+
     // Note: Hàm tạo một repo từ repo template
     const createRepoFromTemplate = async () => {
         try {
@@ -219,6 +287,7 @@ const createGitHubAPI = (accessToken: any) => {
     };
 
     return {
+        ensureCWorkflow,
         getFileSha,
         getFileContent,
         getBranchSha,

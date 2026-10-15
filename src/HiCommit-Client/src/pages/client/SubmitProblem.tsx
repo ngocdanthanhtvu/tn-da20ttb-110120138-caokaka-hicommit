@@ -45,7 +45,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useEffect, useRef, useState } from "react";
-import createGitHubAPI from "@/service/githubService";
+import createGitHubAPI, { RunnerSetupError, shouldUpgradeCWorkflow } from "@/service/githubService";
 import { useLogin } from "@/service/LoginContext";
 import Loader from "@/components/ui/loader";
 import { getProblemByIDorSlug } from "@/service/API/Problem";
@@ -179,6 +179,16 @@ function SubmitProblem() {
             // Kiểm tra xem branch của bài tập đã được tạo chưa
             await handleCheckBranch();
 
+            if (selectedLanguage === 'c' && shouldUpgradeCWorkflow(
+                loginContext?.user.login || loginContext?.user.username || ''
+            )) {
+                await githubAPI.ensureCWorkflow(
+                    loginContext?.user.login || loginContext?.user.username,
+                    targetRepo,
+                    problem_id as string
+                );
+            }
+
             // Nếu là java thì tạo file Main.java, còn lại tạo file main.c hoặc main.cpp
             const file_name = selectedLanguage === "java" ? "Main.java" : "main." + selectedLanguage;
 
@@ -226,7 +236,9 @@ function SubmitProblem() {
             setLoading(false);
             console.error("Error during handleSubmit:", error);
             toast.error(
-                'Không thể hoàn tất gửi bài. Mã nguồn vẫn được giữ trong trình soạn thảo. Vui lòng kiểm tra lịch sử trước khi nộp lại.',
+                error instanceof RunnerSetupError
+                    ? error.message
+                    : 'Không thể hoàn tất gửi bài. Mã nguồn vẫn được giữ trong trình soạn thảo. Vui lòng kiểm tra lịch sử trước khi nộp lại.',
                 { id: 'submit-problem', duration: 7000 }
             );
         } finally {
